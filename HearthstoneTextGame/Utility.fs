@@ -26,7 +26,7 @@ module Utility =
         
     let predefinedDecksFileName = 
         [ "reynad_zoo.Warlock.deck"]
-        |> List.map (fun deck -> Path.Combine("Extra",deck))         
+        |> List.map (fun deck -> Path.Combine("Content",deck))         
 
 [<AutoOpen>]
 module EntityJson =

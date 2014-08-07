@@ -127,8 +127,12 @@
     <Content Include="Web.config" />
     <Content Include="Global.asax" />
     <Content Include="Setup.fsx" />
-    <Content Include="Content\All.json" />
-    <Content Include="Content\reynad_zoo.Warlock.deck" />
+    <Content Include="Content\All.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Content\reynad_zoo.Warlock.deck">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
