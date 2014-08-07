@@ -52,6 +52,18 @@ module Entity =
               Cost = 0
               Text = "" }
 
+    type HeroClass =
+        | Mage
+        | Hunter
+        | Priest
+        | Warlock
+        | Paladin
+        | Warrior
+        | Rogue
+        | Shaman
+        | Druid
+        | Other
+
     type Hero =
         { Name : string
           HeroClass : string }

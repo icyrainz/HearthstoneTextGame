@@ -60,7 +60,8 @@ module EntityJson =
           Type : string }
 
     let All =         
-        JsonValue.Parse(File.ReadAllText(Utility.getContentPath "All.json")).AsArray()
+        let allJson = JsonValue.Parse(File.ReadAllText(Utility.getContentPath "All.json"))
+        ((JsonExtensions.AsArray allJson) : JsonValue [])
         |> Array.map (fun jsonVal ->
             {
                 Artist = jsonVal.TryGetProperty("artist") |> Option.map (fun e -> e.AsString())
