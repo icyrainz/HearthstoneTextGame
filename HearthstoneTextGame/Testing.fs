@@ -5,7 +5,9 @@ open Xunit
 open HearthstoneTextGame
 
 type ``With Reynad Zoodeck`` () =
+
     let zooDeck = Deck.PredefinedDecks |> List.find(fun deck -> deck.Name.Contains("zoo"))
+
 
     [<Fact>]
     member x.`` obvious 1 = 1 `` () =

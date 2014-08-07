@@ -16,7 +16,7 @@ module Card =
           Health = entity.Health
           Durability = entity.Durability
           Text = entity.Text
-          Mechanics = entity.Mechanics |> Array.toList }
+          Mechanics = entity.Mechanics }
 
     let playableCards =
         EntityJson.All
