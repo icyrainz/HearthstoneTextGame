@@ -47,3 +47,6 @@ module Card =
         |> Seq.find(fun e -> e.Id = id)
         |> parseEntityJsonToCard
 
+    let getCardIdsByNames (nameList : string list) =
+        nameList |> List.map (fun name -> (getCardByExactName name).Id)
+

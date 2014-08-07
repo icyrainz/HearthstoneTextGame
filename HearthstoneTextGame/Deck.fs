@@ -1,6 +1,8 @@
 ﻿namespace HearthstoneTextGame
 
 open System
+open System.IO
+open System.Text.RegularExpressions
 
 module Deck =
 
@@ -30,3 +32,29 @@ module Deck =
             )
 
         !rngDeck
+
+    let parseDeckInCockatrice (text : string) =
+        try
+            let pattern = @"(\d{1}) (.+)"
+            let lines = text.Split([|Environment.NewLine|], StringSplitOptions.None)
+            [ for line in lines do
+                let captureGroup = Regex.Match(line.Trim(), pattern).Groups
+                let numCard = captureGroup.Item(1).Value |> int
+                let cardName = captureGroup.Item(2).Value
+                for i = 1 to numCard do yield cardName
+            ] |> Card.getCardIdsByNames
+        with
+            _ -> failwith "Cannot parse deck"
+
+    let PredefinedDecks = 
+        Utility.predefinedDecksFileName |> List.map(fun deckFileName ->
+            let deckInfo = deckFileName.Split([|'.'|])
+            let deckName = deckInfo.[0]
+            let deckClass = deckInfo.[1]
+            let deckCardList = parseDeckInCockatrice <| File.ReadAllText(deckFileName)
+            { Name = deckName
+              DeckClass = deckClass
+              CardIdList = deckCardList
+            }
+                
+        )

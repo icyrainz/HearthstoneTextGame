@@ -1,6 +1,7 @@
 ﻿namespace HearthstoneTextGame
 
 open System
+open System.IO
 open FSharp.Data
 open IntelliFactory.WebSharper
 
@@ -21,7 +22,11 @@ module Utility =
         let rng = Random().Next(lst |> List.length)
         let item = List.nth lst rng
         let newLst = remove rng lst
-        item, newLst        
+        item, newLst
+        
+    let predefinedDecksFileName = 
+        [ "reynad_zoo.Warlock.deck"]
+        |> List.map (fun deck -> Path.Combine("Extra",deck))         
 
 [<AutoOpen>]
 module EntityJson =

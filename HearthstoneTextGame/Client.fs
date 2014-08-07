@@ -426,15 +426,14 @@ module Client =
                         | Error msg -> ())).Ignore
 
         Div [Attr.Class "col-md-12"] -< [
-            Div [Attr.Class "page-header"] -< [H1 [Text "Game Simulation"]]
 
             Div [Attr.Class "panel panel-primary"] -< [
                 Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Game Control"]
                 Div [Attr.Class "panel-body"] -< [
                     Div [Attr.Class "row clearfix"] -< [
-                        Div [Attr.Class "col-xs-4"] -- newGameButton
-                        Div [Attr.Class "col-xs-4"] -- registerPlayerButton
-                        Div [Attr.Class "col-xs-4"] -- testButton
+                        Div [Attr.Class "col-sm-4"] -- newGameButton
+                        Div [Attr.Class "col-sm-4"] -- registerPlayerButton
+                        Div [Attr.Class "col-sm-4"] -- testButton
                     ]
                 ]
                 Div [Attr.Class "panel-footer"] -< [
