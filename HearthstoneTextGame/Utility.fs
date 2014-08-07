@@ -31,8 +31,8 @@ module Utility =
 [<AutoOpen>]
 module EntityJson =
     
-    type T = JsonProvider<"Extra\All.json">.Root
-    let All = JsonProvider<"Extra\All.json">.GetSamples()
+    type T = JsonProvider<"Content\All.json">.Root
+    let All = JsonProvider<"Content\All.json">.GetSamples()
 
 [<JavaScript>]
 module Config =

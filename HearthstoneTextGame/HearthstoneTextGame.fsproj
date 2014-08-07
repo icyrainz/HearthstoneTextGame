@@ -127,12 +127,8 @@
     <Content Include="Web.config" />
     <Content Include="Global.asax" />
     <Content Include="Setup.fsx" />
-    <Content Include="Extra\All.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <None Include="Extra\reynad_zoo.Warlock.deck">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <Content Include="Content\All.json" />
+    <Content Include="Content\reynad_zoo.Warlock.deck" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -163,22 +159,4 @@
       <Private>True</Private>
     </Reference>
   </ItemGroup>
-  <Target Name="CustomCollectFiles">
-    <ItemGroup>
-      <_CustomFiles Include="..\Extra\**\*" />
-      <FilesForPackagingFromProject Include="%(_CustomFiles.Identity)">
-        <DestinationRelativePath>Extra\%(RecursiveDir)%(Filename)%(Extension)</DestinationRelativePath>
-      </FilesForPackagingFromProject>
-    </ItemGroup>
-  </Target>
-  <PropertyGroup>
-    <CopyAllFilesToSingleFolderForPackageDependsOn>
-      CustomCollectFiles;
-      $(CopyAllFilesToSingleFolderForPackageDependsOn);
-    </CopyAllFilesToSingleFolderForPackageDependsOn>
-    <CopyAllFilesToSingleFolderForMsdeployDependsOn>
-      CustomCollectFiles;
-      $(CopyAllFilesToSingleFolderForPackageDependsOn);
-    </CopyAllFilesToSingleFolderForMsdeployDependsOn>
-  </PropertyGroup>
 </Project>
