@@ -46,7 +46,7 @@ module Hero =
             | "Rogue", true -> "Dagger Mastery"
             | "Warlock", true -> "Life Tap"
             | "Paladin", true -> "Reinforce"
-            | "Warrior", true -> "Armour Up!"
+            | "Warrior", true -> "Armor Up!"
             | _, _ -> "Fireblast"
         heroPowers |> List.find(fun e -> e.Name = heroPowerName) 
     

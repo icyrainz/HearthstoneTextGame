@@ -21,36 +21,13 @@ module Utility =
         let rng = Random().Next(lst |> List.length)
         let item = List.nth lst rng
         let newLst = remove rng lst
-        item, newLst
-
-//    [<JavaScript>]
-//    let alphaNum =
-//        [ for i = int('a') to int('z') do
-//            yield char i
-//          for i = int('A') to int('Z') do
-//            yield char i
-//          for i = int('0') to int('9') do
-//            yield char i
-//        ]
-//
-//    [<Inline "Math.random()">]
-//    let rand () = JavaScript.
-//
-//    [<JavaScript>]
-//    let newGuid () =
-//        "0000-0000-0000-0000" 
-//        |> String.map(fun e -> 
-//            if e = '0' then
-//                List.nth alphaNum <| int (rand() * (float alphaNum.Length))
-//            else
-//                e
-//        )
-        
+        item, newLst        
 
 [<AutoOpen>]
 module EntityJson =
-    type T = JsonProvider<"https://dl.dropboxusercontent.com/u/302900/All.json">.Root
-    let All = JsonProvider<"https://dl.dropboxusercontent.com/u/302900/All.json">.GetSamples()
+    
+    type T = JsonProvider<"Extra\All.json">.Root
+    let All = JsonProvider<"Extra\All.json">.GetSamples()
 
 [<JavaScript>]
 module Config =

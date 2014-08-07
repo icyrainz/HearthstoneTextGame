@@ -43,6 +43,20 @@
       <Content Include="Scripts/**/*.*" />
     </ItemGroup>
   </Target>
+  <PropertyGroup>
+    <CopyAllFilesToSingleFolderForPackageDependsOn>
+      CustomCollectFiles;
+      $(CopyAllFilesToSingleFolderForPackageDependsOn);
+    </CopyAllFilesToSingleFolderForPackageDependsOn>
+  </PropertyGroup>
+  <Target Name="CustomCollectFiles">
+    <ItemGroup>
+      <_CustomFiles Include="..\Extra\**\*" />
+      <FilesForPackagingFromProject Include="%(_CustomFiles.Identity)">
+        <DestinationRelativePath>Extra\%(RecursiveDir)%(Filename)%(Extension)</DestinationRelativePath>
+      </FilesForPackagingFromProject>
+    </ItemGroup>
+  </Target>
   <!-- F# targets -->
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '11.0'">
@@ -126,6 +140,7 @@
     <Content Include="Web.config" />
     <Content Include="Global.asax" />
     <Content Include="Setup.fsx" />
+    <Content Include="Extra\All.json" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
