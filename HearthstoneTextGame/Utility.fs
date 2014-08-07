@@ -4,6 +4,7 @@ open System
 open System.Web.Hosting
 open System.IO
 open FSharp.Data
+open FSharp.Data.JsonExtensions
 open IntelliFactory.WebSharper
 
 module Utility =
