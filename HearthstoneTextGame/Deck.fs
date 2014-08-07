@@ -36,7 +36,7 @@ module Deck =
     let parseDeckInCockatrice (text : string) =
         try
             let pattern = @"(\d{1}) (.+)"
-            let lines = text.Split([|Environment.NewLine|], StringSplitOptions.None)
+            let lines = text.Split([|"\n"|], StringSplitOptions.None)
             [ for line in lines do
                 let captureGroup = Regex.Match(line.Trim(), pattern).Groups
                 let numCard = captureGroup.Item(1).Value |> int
@@ -48,9 +48,9 @@ module Deck =
 
     let PredefinedDecks = 
         Utility.predefinedDecksFileName |> List.map(fun deckFileName ->
-            let deckInfo = deckFileName.Split([|'.'|])
-            let deckName = deckInfo.[0]
-            let deckClass = deckInfo.[1]
+            let deckInfo = Regex.Match(deckFileName, @".*\\(.*)\.(.*)\..*")
+            let deckName = deckInfo.Groups.Item(1).Value
+            let deckClass = deckInfo.Groups.Item(2).Value
             let deckCardList = parseDeckInCockatrice <| File.ReadAllText(deckFileName)
             { Name = deckName
               DeckClass = deckClass
