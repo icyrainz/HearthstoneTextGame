@@ -4,7 +4,6 @@ open System
 open System.Web.Hosting
 open System.IO
 open FSharp.Data
-open FSharp.Data.JsonExtensions
 open IntelliFactory.WebSharper
 
 module Utility =
@@ -65,26 +64,26 @@ module EntityJson =
         ((JsonExtensions.AsArray allJson) : JsonValue [])
         |> Array.map (fun jsonVal ->
             {
-                Artist = jsonVal.TryGetProperty("artist") |> Option.map (fun e -> e.AsString())
-                Attack = jsonVal.TryGetProperty("attack") |> Option.map (fun e -> e.AsInteger())
-                Collectible = jsonVal.TryGetProperty("collectible") |> Option.map (fun e -> e.AsBoolean())
-                Cost = jsonVal.TryGetProperty("cost") |> Option.map (fun e -> e.AsInteger())
-                Durability = jsonVal.TryGetProperty("durability") |> Option.map (fun e -> e.AsInteger())
-                Elite = jsonVal.TryGetProperty("elite") |> Option.map (fun e -> e.AsBoolean())
-                Faction = jsonVal.TryGetProperty("faction") |> Option.map (fun e -> e.AsString())
-                Flavor = jsonVal.TryGetProperty("flavor") |> Option.map (fun e -> e.AsString())
-                Health = jsonVal.TryGetProperty("health") |> Option.map (fun e -> e.AsInteger())
-                HowToGet = jsonVal.TryGetProperty("howtoget") |> Option.map (fun e -> e.AsString())
-                HowToGetGold = jsonVal.TryGetProperty("howtogetgold") |> Option.map (fun e -> e.AsString())
-                Id = jsonVal.GetProperty("id").AsString()
-                InPlayText = jsonVal.TryGetProperty("inplaytext") |> Option.map (fun e -> e.AsString())
-                Mechanics = jsonVal.AsArray() |> Array.map (fun e -> e.AsString()) |> Array.toList
-                Name = jsonVal.GetProperty("name").AsString()
-                PlayerClass = jsonVal.TryGetProperty("playerclass") |> Option.map (fun e -> e.AsString())
-                Race = jsonVal.TryGetProperty("race") |> Option.map (fun e -> e.AsString())
-                Rarity = jsonVal.TryGetProperty("rarity") |> Option.map (fun e -> e.AsString())
-                Text = jsonVal.TryGetProperty("text") |> Option.map (fun e -> e.AsString())
-                Type = jsonVal.GetProperty("type").AsString()
+                Artist = JsonExtensions.TryGetProperty(jsonVal,"artist") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Attack = JsonExtensions.TryGetProperty(jsonVal,"attack") |> Option.map (fun e -> JsonExtensions.AsInteger(e))
+                Collectible = JsonExtensions.TryGetProperty(jsonVal,"collectible") |> Option.map (fun e -> e.AsBoolean())
+                Cost = JsonExtensions.TryGetProperty(jsonVal,"cost") |> Option.map (fun e -> JsonExtensions.AsInteger(e))
+                Durability = JsonExtensions.TryGetProperty(jsonVal,"durability") |> Option.map (fun e -> JsonExtensions.AsInteger(e))
+                Elite = JsonExtensions.TryGetProperty(jsonVal,"elite") |> Option.map (fun e -> e.AsBoolean())
+                Faction = JsonExtensions.TryGetProperty(jsonVal,"faction") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Flavor = JsonExtensions.TryGetProperty(jsonVal,"flavor") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Health = JsonExtensions.TryGetProperty(jsonVal,"health") |> Option.map (fun e -> JsonExtensions.AsInteger(e))
+                HowToGet = JsonExtensions.TryGetProperty(jsonVal,"howtoget") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                HowToGetGold = JsonExtensions.TryGetProperty(jsonVal,"howtogetgold") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Id = JsonExtensions.AsString(JsonExtensions.GetProperty(jsonVal,"id"))
+                InPlayText = JsonExtensions.TryGetProperty(jsonVal,"inplaytext") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Mechanics = jsonVal.AsArray() |> Array.map (fun e -> JsonExtensions.AsString(e)) |> Array.toList
+                Name = JsonExtensions.AsString(JsonExtensions.GetProperty(jsonVal,"name"))
+                PlayerClass = JsonExtensions.TryGetProperty(jsonVal,"playerclass") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Race = JsonExtensions.TryGetProperty(jsonVal,"race") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Rarity = JsonExtensions.TryGetProperty(jsonVal,"rarity") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Text = JsonExtensions.TryGetProperty(jsonVal,"text") |> Option.map (fun e -> JsonExtensions.AsString(e))
+                Type = JsonExtensions.AsString(JsonExtensions.GetProperty(jsonVal,"type"))
             }
         )
         |> Array.toList
