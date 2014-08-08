@@ -28,7 +28,7 @@ module Utility =
     let getContentPath path = 
         match System.Web.Hosting.HostingEnvironment.MapPath("~/Content/" + path) with
         | null -> path
-        | value -> value
+        | value -> Path.Combine("Content", value)
         
     let predefinedDecksFileName = 
         [ "reynad_zoo.Warlock.deck"]
