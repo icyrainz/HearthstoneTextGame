@@ -322,7 +322,7 @@ module Client =
                     | Success player -> 
                         if (!leftPlayer) = JavaScript.Undefined<Player> || (!leftPlayer).Guid = player.Guid then
                             updateLeftPlayer player
-                        else if (!rightPlayer) = JavaScript.Undefined<Player> then
+                        else if (!rightPlayer) = JavaScript.Undefined<Player> || (!rightPlayer).Guid = player.Guid then
                             updateRightPlayer player
                     | Error msg -> JavaScript.Alert(msg))
         
