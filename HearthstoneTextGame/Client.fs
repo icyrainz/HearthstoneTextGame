@@ -302,7 +302,7 @@ module Client =
                 match getCard item with
                 | Success card ->
                     cardTemplateDiv card.Name card.Id |> leftPlayerHand.Append
-                | Error msg -> ())
+                | Error msg -> JavaScript.Alert(msg))
             updatePopover
 
         let updateRightPlayer (player) =
@@ -322,12 +322,14 @@ module Client =
                     | Success player -> 
                         if (!leftPlayer) = JavaScript.Undefined<Player> || (!leftPlayer).Guid = player.Guid then
                             updateLeftPlayer player
-                        else
+                        else if (!rightPlayer) = JavaScript.Undefined<Player> then
                             updateRightPlayer player
-                    | Error msg -> ())
+                    | Error msg -> JavaScript.Alert(msg))
         
         let updatePlayers () =
-            [(!leftPlayer).Guid; (!rightPlayer).Guid] |> List.iter(fun e -> updatePlayer e)
+            [ if (!leftPlayer) <> JavaScript.Undefined<Player> then yield (!leftPlayer).Guid
+              if (!rightPlayer) <> JavaScript.Undefined<Player> then yield (!rightPlayer).Guid ]
+            |> List.iter(fun e -> updatePlayer e)
 
         let playCard (cardId : string) (player : Player) =
             ()
@@ -346,7 +348,7 @@ module Client =
                     NewGame (fun res ->
                         match res with
                         | Success gameGuid -> newGame gameGuid
-                        | Error msg -> ())).Ignore
+                        | Error msg -> JavaScript.Alert(msg))).Ignore
 
             JQuery.Of(registerPlayerButton.Dom)
                 .Click(fun _ _ ->
@@ -364,7 +366,7 @@ module Client =
                             registerPlayerWithClass name selection (!currentGameGuid) (fun res ->
                                 match res with
                                 | Success playerGuid -> updatePlayer playerGuid
-                                | Error msg -> ())
+                                | Error msg -> JavaScript.Alert(msg))
                         )
                     | None -> ()).Ignore
 
@@ -376,7 +378,7 @@ module Client =
                             addCardToHand card.Name card.Id leftPlayerHand
                             updatePlayer (!leftPlayer).Guid
                         | Error msg ->
-                            ())).Hide().Ignore
+                            JavaScript.Alert(msg))).Hide().Ignore
 
             JQuery.Of(rightPlayerdrawCardButton.Dom)
                 .Click(fun _ _ ->
@@ -386,7 +388,7 @@ module Client =
                             addCardToHand card.Name card.Id rightPlayerHand
                             updatePlayer (!rightPlayer).Guid
                         | Error msg ->
-                            ())).Hide().Ignore
+                            JavaScript.Alert(msg))).Hide().Ignore
 
             JQuery.Of(openModalButton.Dom).Hide().Ignore
 
@@ -410,8 +412,9 @@ module Client =
                                         useHeroPower (!leftPlayer).Guid (Some selGuid) (!currentGameGuid) (fun afterUse ->
                                             match afterUse with
                                             | Success msg ->
+                                                JavaScript.Alert(msg)
                                                 updatePlayers()
-                                            | Error msg -> ()
+                                            | Error msg -> JavaScript.Alert(msg)
                                         )
                                     )
                                 | Error msg -> ()
@@ -420,10 +423,11 @@ module Client =
                             useHeroPower (!leftPlayer).Guid None (!currentGameGuid) (fun res ->
                                 match res with
                                 | Success msg ->
+                                    JavaScript.Alert(msg)
                                     updatePlayers()
-                                | Error msg -> ()
+                                | Error msg -> JavaScript.Alert(msg)
                             )
-                        | Error msg -> ())).Ignore
+                        | Error msg -> JavaScript.Alert(msg))).Ignore
 
         Div [Attr.Class "col-md-12"] -< [
 
