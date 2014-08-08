@@ -133,8 +133,8 @@
     <Content Include="Content\reynad_zoo.Warlock.deck">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <None Include="hearthstonetextsimulator.pubxml" />
     <None Include="packages.config" />
+    <None Include="hearthstonetextsimulator.pubxml" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Data">

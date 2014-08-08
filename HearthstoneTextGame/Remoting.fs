@@ -47,12 +47,6 @@ module Remoting =
         }
 
     [<Remote>]
-    let Process input =
-        async {
-            return "You said: " + input
-        }
-
-    [<Remote>]
     let NewGame () =
         async {
             try
@@ -100,10 +94,9 @@ module Remoting =
         respondAsync
             gameGuid
             (fun game ->
-                let ret = getPlayer playerGuid game
-                match ret with
-                | Some player -> drawCard player game
-                | None -> None)
+                getPlayer playerGuid game
+                |> Option.bind(fun player -> drawCard player game)
+            )
             (fun (newCard, newGame) ->
                 updateGame newGame
                 Success(Card.getCardById newCard))
@@ -123,18 +116,15 @@ module Remoting =
             gameGuid
             (fun game ->
                 if targetGuid.IsSome then
-                    match findIChar targetGuid.Value game (fun _ -> ()) (fun _ -> ()) with
-                    | None -> None
-                    | Some target ->
-                        let ret = getPlayer playerGuid game
-                        match ret with
-                        | Some player -> useHeroPower player (Some target) game
-                        | None -> None
+                    findIChar targetGuid.Value game (fun _ -> ()) (fun _ -> ())
+                    |> Option.bind(fun target ->
+                        getPlayer playerGuid game
+                        |> Option.bind(fun player -> useHeroPower player (Some target) game)
+                        )
                 else
-                    let ret = getPlayer playerGuid game
-                    match ret with
-                    | Some player -> useHeroPower player None game
-                    | None -> None)
+                    getPlayer playerGuid game
+                    |> Option.bind(fun player -> useHeroPower player None game)
+            )
             (fun newGame ->
                 updateGame newGame
                 Success("Successfully use hero power"))
@@ -145,10 +135,9 @@ module Remoting =
         respondAsync
             gameGuid
             (fun game ->
-                let ret = getPlayer playerGuid game
-                match ret with
-                | Some player -> findTargetForHeroPower player game
-                | None -> None)
+                getPlayer playerGuid game
+                |> Option.bind(fun player -> findTargetForHeroPower player game)
+            )
             (fun targetList -> Success(targetList))
             (Error("Cannot find target"))
 
@@ -162,9 +151,10 @@ module Remoting =
                     guid
                     game 
                     (fun hero -> 
-                        match game.Players |> List.tryFind(fun e -> e.HeroCharacter.Guid = guid) with
-                        | Some player -> name := player.Name
-                        | None -> ())
+                        game.Players 
+                        |> List.tryFind(fun e -> e.HeroCharacter.Guid = guid)
+                        |> Option.iter(fun player -> name := player.Name)
+                    )
                     (fun minion -> name := minion.Card.Name) |> ignore
                 if name.Value = "" then None
                 else Some name.Value

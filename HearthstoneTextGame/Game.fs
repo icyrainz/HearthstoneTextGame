@@ -36,15 +36,11 @@ module Game =
 
     let registerPlayer (playerName : string) (deck : Deck) (game : GameSession) =
         let newPlayer = initPlayerWithDeck playerName deck
-        match addPlayer newPlayer game with
-        | Some newGame -> Some (newPlayer, newGame)
-        | None -> None
+        addPlayer newPlayer game |> Option.map(fun newGame -> newPlayer, newGame)
 
     let registerRandomDeckPlayer (playerName : string) (game : GameSession) =
         let newPlayer = initPlayer playerName
-        match addPlayer newPlayer game with
-        | Some newGame -> Some (newPlayer, newGame)
-        | None -> None
+        addPlayer newPlayer game |> Option.map(fun newGame -> newPlayer, newGame)
 
     let registerRandomDeckPlayerWithClass (playerName : string) (playerClass : string) (game : GameSession) =
         let deck = Deck.getRandomDeck(playerClass)
@@ -137,11 +133,11 @@ module Game =
                 let newTarget = target.Value.GetHeal(2)
                 Some <| updateICharToGame [newTarget] newGame
             | "CS2_056" (* Life Tap *) ->
-                match drawCard newPlayer newGame with
-                | Some (newCard, aNewGame) ->
+                drawCard newPlayer newGame
+                |> Option.map(fun (newCard, aNewGame) ->
                     let newHeroCharacter = (newPlayer.HeroCharacter :> ICharacter).GetDamage(2) :?> HeroCharacter
-                    Some <| updateICharToGame [newHeroCharacter] aNewGame
-                | None -> None
+                    updateICharToGame [newHeroCharacter] aNewGame
+                    )
             | "CS2_102" (* Armour Up! *) ->
                 let newArmour = newPlayer.HeroCharacter.Armour + 2
                 let newHeroChar = { newPlayer.HeroCharacter with Armour = newArmour }
@@ -158,43 +154,43 @@ module Game =
                     ifHero e.HeroCharacter
                     Some (e.HeroCharacter :> ICharacter)
                 else
-                    match e.MinionPosition |> List.tryFind (fun m -> m.Guid = guid) with
-                    | None -> None
-                    | Some minion ->
+                    e.MinionPosition |> List.tryFind (fun m -> m.Guid = guid)
+                    |> Option.map(fun minion ->
                         ifMinion minion
-                        Some (minion :> ICharacter)
+                        minion :> ICharacter
+                    )
             )
 
         if found |> List.length = 1 then Some found.Head
         else None
 
     let findTargetForHeroPower (player : Player) (game : GameSession) =
-        match Hero.heroPowers |> List.tryFind(fun e -> e = fst player.HeroPower) with
-        | None -> None
-        | Some heroPower ->
-            match heroPower.Target with
-            | None -> None
-            | Some target ->
-                let opponent = (getOpponent player.Guid game).Value
-                match target with
-                | AnyTarget Any ->
-                    [ player.HeroCharacter.Guid
-                      opponent.HeroCharacter.Guid ]
-                    |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
-                    |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid)) |> Some
-                | AnyTarget Friendly ->
-                    [ player.HeroCharacter.Guid ]
-                    |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid)) |> Some
-                | AnyTarget Enemy ->
-                    [ opponent.HeroCharacter.Guid ]
-                    |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid)) |> Some
-                | MinionTarget Any ->
-                    [ ]
-                    |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
-                    |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid)) |> Some
-                | MinionTarget Friendly ->
-                    [ ]
-                    |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid)) |> Some
-                | MinionTarget Enemy ->
-                    [ ]
-                    |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid)) |> Some
+        Hero.heroPowers |> List.tryFind(fun e -> e = fst player.HeroPower)
+        |> Option.bind(fun heroPower ->
+            heroPower.Target |> Option.bind(fun target -> 
+                getOpponent player.Guid game |> Option.map(fun opponent ->
+                    match target with
+                    | AnyTarget Any ->
+                        [ player.HeroCharacter.Guid
+                          opponent.HeroCharacter.Guid ]
+                        |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
+                        |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
+                    | AnyTarget Friendly ->
+                        [ player.HeroCharacter.Guid ]
+                        |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
+                    | AnyTarget Enemy ->
+                        [ opponent.HeroCharacter.Guid ]
+                        |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
+                    | MinionTarget Any ->
+                        [ ]
+                        |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
+                        |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
+                    | MinionTarget Friendly ->
+                        [ ]
+                        |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
+                    | MinionTarget Enemy ->
+                        [ ]
+                        |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
+                    )
+                )
+            )

@@ -8,13 +8,6 @@ open IntelliFactory.WebSharper.JQuery
 [<JavaScript>]
 module Client =
 
-    let Start input k =
-        async {
-            let! data = Remoting.Process(input)
-            return k data
-        }
-        |> Async.Start
-
     let NewGame callback =
         async {
             let! result = Remoting.NewGame()
@@ -28,36 +21,6 @@ module Client =
             return callback result
         }
         |> Async.Start
-
-    let registerPlayer (playerName : string) (gameGuid : string) callback =
-        doAsync (Remoting.RegisterPlayer playerName gameGuid) callback
-
-    let registerPlayerWithClass (playerName : string) (playerClass : string) (gameGuid : string) callback =
-        doAsync (Remoting.RegisterPlayerWithClass playerName playerClass gameGuid) callback
-
-    let getPlayer (playerGuid : string) (gameGuid : string) callback =
-        doAsync (Remoting.GetPlayer playerGuid gameGuid) callback
-
-    let drawCard (playerGuid : string) (gameGuid : string) callback =
-        doAsync (Remoting.DrawCard playerGuid gameGuid) callback
-
-    let doesHeroPowerNeedTarget (heroPowerName : string) callback =
-        doAsync (Remoting.DoesHeroPowerNeedTarget heroPowerName) callback
-
-    let findTargetForHeroPower (playerGuid : string) (gameGuid : string) callback =
-        doAsync (Remoting.FindTargetForHeroPower playerGuid gameGuid) callback
-
-    let useHeroPower (playerGuid : string) (targetGuid : string option) (gameGuid : string) callback =
-        doAsync (Remoting.UseHeroPower playerGuid targetGuid gameGuid) callback
-
-    let getICharName (guid : string) (gameGuid : string) =
-        Remoting.GetICharName guid gameGuid
-
-    let getPlayableClasses () =
-        Remoting.GetPlayableClass()
-
-    let getCard (cardId : string) =
-        Remoting.GetCard cardId
 
     [<Inline " updatePopover() ">]
     let updatePopover = ()
@@ -299,7 +262,7 @@ module Client =
 
             JQuery.Of(leftPlayerHand.Dom).Children().Remove().Ignore
             (!leftPlayer).Hand |> List.iter(fun item -> 
-                match getCard item with
+                match Remoting.GetCard item with
                 | Success card ->
                     cardTemplateDiv card.Name card.Id |> leftPlayerHand.Append
                 | Error msg -> JavaScript.Alert(msg))
@@ -316,7 +279,7 @@ module Client =
 
 
         let updatePlayer playerGuid =
-            getPlayer playerGuid (!currentGameGuid)
+            doAsync (Remoting.GetPlayer playerGuid (!currentGameGuid))
                 (fun res -> 
                     match res with
                     | Success player -> 
@@ -361,73 +324,80 @@ module Client =
                             None
                     match playerName with
                     | Some name ->
-                        let classList = getPlayableClasses()
-                        addItemsToAsk classList (fun selection -> 
-                            registerPlayerWithClass name selection (!currentGameGuid) (fun res ->
-                                match res with
-                                | Success playerGuid -> updatePlayer playerGuid
-                                | Error msg -> JavaScript.Alert(msg))
+                        let classList = Remoting.GetPlayableClass()
+                        addItemsToAsk classList (fun selection ->
+                            doAsync (Remoting.RegisterPlayerWithClass name selection (!currentGameGuid)) 
+                                (fun res ->
+                                    match res with
+                                    | Success playerGuid -> updatePlayer playerGuid
+                                    | Error msg -> JavaScript.Alert(msg))
                         )
                     | None -> ()).Ignore
 
             JQuery.Of(leftPlayerdrawCardButton.Dom)
                 .Click(fun _ _ ->
-                    drawCard (!leftPlayer).Guid (!currentGameGuid) (fun res ->
-                        match res with
-                        | Success card ->
-                            addCardToHand card.Name card.Id leftPlayerHand
-                            updatePlayer (!leftPlayer).Guid
-                        | Error msg ->
-                            JavaScript.Alert(msg))).Hide().Ignore
+                    doAsync (Remoting.DrawCard (!leftPlayer).Guid (!currentGameGuid))
+                        (fun res ->
+                            match res with
+                            | Success card ->
+                                addCardToHand card.Name card.Id leftPlayerHand
+                                updatePlayer (!leftPlayer).Guid
+                            | Error msg ->
+                                JavaScript.Alert(msg))).Hide().Ignore
 
             JQuery.Of(rightPlayerdrawCardButton.Dom)
                 .Click(fun _ _ ->
-                    drawCard (!rightPlayer).Guid (!currentGameGuid) (fun res ->
-                        match res with
-                        | Success card ->
-                            addCardToHand card.Name card.Id rightPlayerHand
-                            updatePlayer (!rightPlayer).Guid
-                        | Error msg ->
-                            JavaScript.Alert(msg))).Hide().Ignore
+                    doAsync (Remoting.DrawCard (!rightPlayer).Guid (!currentGameGuid))
+                        (fun res ->
+                            match res with
+                            | Success card ->
+                                addCardToHand card.Name card.Id rightPlayerHand
+                                updatePlayer (!rightPlayer).Guid
+                            | Error msg ->
+                                JavaScript.Alert(msg))).Hide().Ignore
 
             JQuery.Of(openModalButton.Dom).Hide().Ignore
 
             JQuery.Of(leftPlayerUseHeroPowerButton.Dom)
                 .Click(fun _ _ ->
-                    doesHeroPowerNeedTarget (fst (!leftPlayer).HeroPower).Name (fun needTarget ->
-                        match needTarget with
-                        | Success true ->
-                            findTargetForHeroPower (!leftPlayer).Guid (!currentGameGuid) (fun res ->
-                                match res with
-                                | Success items ->
-                                    let newItems =
-                                        items |> List.map (fun item ->
-                                            match getICharName (item) (!currentGameGuid) with
-                                            | Success name -> name
-                                            | Error msg -> "Fail to load name !"
-                                        )
-                                    let itemNameWithGuid = List.zip newItems items
-                                    addItemsToAsk newItems (fun choice ->
-                                        let selGuid = itemNameWithGuid |> List.find(fun (name, guid) -> name = choice) |> snd
-                                        useHeroPower (!leftPlayer).Guid (Some selGuid) (!currentGameGuid) (fun afterUse ->
-                                            match afterUse with
-                                            | Success msg ->
-                                                JavaScript.Alert(msg)
-                                                updatePlayers()
-                                            | Error msg -> JavaScript.Alert(msg)
-                                        )
+                    doAsync (Remoting.DoesHeroPowerNeedTarget (fst (!leftPlayer).HeroPower).Name )
+                        (fun needTarget ->
+                            match needTarget with
+                            | Success true ->
+                                doAsync (Remoting.FindTargetForHeroPower (!leftPlayer).Guid (!currentGameGuid))
+                                    (fun res ->
+                                        match res with
+                                        | Success items ->
+                                            let newItems =
+                                                items |> List.map (fun item ->
+                                                    match Remoting.GetICharName (item) (!currentGameGuid) with
+                                                    | Success name -> name
+                                                    | Error msg -> "Fail to load name !"
+                                                )
+                                            let itemNameWithGuid = List.zip newItems items
+                                            addItemsToAsk newItems (fun choice ->
+                                                let selGuid = itemNameWithGuid |> List.find(fun (name, guid) -> name = choice) |> snd
+                                                doAsync (Remoting.UseHeroPower (!leftPlayer).Guid (Some selGuid) (!currentGameGuid))
+                                                    (fun afterUse ->
+                                                        match afterUse with
+                                                        | Success msg ->
+                                                            JavaScript.Alert(msg)
+                                                            updatePlayers()
+                                                        | Error msg -> JavaScript.Alert(msg)
+                                                    )
+                                            )
+                                        | Error msg -> ()
                                     )
-                                | Error msg -> ()
-                            )
-                        | Success false ->
-                            useHeroPower (!leftPlayer).Guid None (!currentGameGuid) (fun res ->
-                                match res with
-                                | Success msg ->
-                                    JavaScript.Alert(msg)
-                                    updatePlayers()
-                                | Error msg -> JavaScript.Alert(msg)
-                            )
-                        | Error msg -> JavaScript.Alert(msg))).Ignore
+                            | Success false ->
+                                doAsync (Remoting.UseHeroPower (!leftPlayer).Guid None (!currentGameGuid))
+                                    (fun res ->
+                                        match res with
+                                        | Success msg ->
+                                            JavaScript.Alert(msg)
+                                            updatePlayers()
+                                        | Error msg -> JavaScript.Alert(msg)
+                                    )
+                            | Error msg -> JavaScript.Alert(msg))).Ignore
 
         Div [Attr.Class "col-md-12"] -< [
 
