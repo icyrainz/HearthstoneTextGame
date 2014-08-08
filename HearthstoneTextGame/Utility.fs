@@ -32,7 +32,7 @@ module Utility =
         
     let predefinedDecksFileName = 
         [ "reynad_zoo.Warlock.deck"]
-        |> List.map (fun deck -> getContentPath deck)         
+        |> List.map (fun deck -> getContentPath deck)
 
 [<AutoOpen>]
 module EntityJson =
@@ -87,6 +87,9 @@ module EntityJson =
             }
         )
         |> Array.toList
+
+    let preload() =
+        All |> List.map(fun e -> e) |> ignore
 
 [<JavaScript>]
 module Config =

@@ -4,6 +4,8 @@ open System
 
 module Game =
 
+    EntityJson.preload()
+
     let initPlayer name =
         { Player.Empty with Name = name
                             HeroClass = "Mage"
