@@ -11,7 +11,7 @@ module Card =
           Rarity = entity.Rarity
           Race = entity.Race
           CardClass = entity.PlayerClass
-          Cost = entity.Cost.Value
+          Cost = entity.Cost
           Attack = entity.Attack
           Health = entity.Health
           Durability = entity.Durability
@@ -26,8 +26,9 @@ module Card =
         |> Seq.map(fun e -> parseEntityJsonToCard(e))
         |> Seq.toList
 
+
     let getRandomPlayableCard (hero : string) =
-        let eligibleCards = playableCards |> List.filter(fun e -> e.CardClass.IsNone || e.CardClass.Value = hero)
+        let eligibleCards = playableCards |> List.filter(fun e -> e.CardClass.IsNone)
         List.nth eligibleCards <| Random().Next(eligibleCards |> List.length)
 
     let getRandomTotem () =
@@ -49,4 +50,9 @@ module Card =
 
     let getCardIdsByNames (nameList : string list) =
         nameList |> List.map (fun name -> (getCardByExactName name).Id)
+
+    let TheCoin =
+        EntityJson.All 
+        |> List.find(fun e -> e.Name = "The Coin")
+        |> parseEntityJsonToCard
 

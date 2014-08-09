@@ -34,7 +34,6 @@ module Utility =
         [ "reynad_zoo.Warlock.deck"]
         |> List.map (fun deck -> getContentPath deck)
 
-[<AutoOpen>]
 module EntityJson =
 
     type T =

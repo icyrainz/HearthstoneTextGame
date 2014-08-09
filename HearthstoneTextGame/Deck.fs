@@ -8,7 +8,7 @@ module Deck =
 
     let drawCardFromDeck (deck : Deck) = 
         let drawCard, remainCardList = deck.CardIdList |> Utility.removeRandomElem
-        drawCard, { deck with CardIdList = remainCardList }
+        Card.getCardById(drawCard), { deck with CardIdList = remainCardList }
 
     let isDeckValid (deck : Deck) =
         let cardList = deck.CardIdList |> Seq.map(fun e -> Card.getCardById(e))

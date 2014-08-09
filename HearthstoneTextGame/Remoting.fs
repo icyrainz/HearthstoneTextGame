@@ -12,21 +12,32 @@ type Response<'T> =
 
 module Remoting =
 
-    let gameDb = new Dictionary<string, GameSession>()
+    let gameDb = new Dictionary<string, DateTime * GameSession>()
 
     let updateGame (game : GameSession) =
+        let now = DateTime.Now
         match gameDb.ContainsKey(game.Guid) with
         | true ->
-            gameDb.Remove(game.Guid) |> ignore
-            gameDb.Add(game.Guid, game)
+            let time, gameInDb = gameDb.Item(game.Guid)
+            if now.CompareTo(time) < 0 then
+                failwith ("Update data in the past")
+            if game <> gameInDb then
+                gameDb.Remove(game.Guid) |> ignore
+                gameDb.Add(game.Guid, (now, game))
         | false ->
-            gameDb.Add(game.Guid, game)
+            gameDb.Add(game.Guid, (now, game))
 
-    let doesGameExist gameGuid = 
-        let isExisted, game = gameDb.TryGetValue(gameGuid)
-        match isExisted with
-        | true -> Some game
+    let getGameTime gameGuid =
+        match gameDb.ContainsKey(gameGuid) with
         | false -> None
+        | true ->
+            gameDb.Item(gameGuid) |> fst |> Some
+
+    let doesGameExist gameGuid =
+        match gameDb.ContainsKey(gameGuid) with
+        | false -> None
+        | true ->
+            gameDb.Item(gameGuid) |> snd |> Some
 
     let respond gameGuid callback =
         match doesGameExist gameGuid with
@@ -43,19 +54,16 @@ module Remoting =
                         | Some result ->
                             ifSuccess (result)
                         | None ->
-                            ifFailure)
+                            ifFailure
+                    )
         }
 
     [<Remote>]
     let NewGame () =
         async {
-            try
-                let newGame = GameSession.Init()
-                gameDb.Add(newGame.Guid, newGame)
-                return Success(newGame.Guid)
-            with
-            | :? System.ArgumentNullException -> return Error("Invalid game guid")
-            | :? System.ArgumentException -> return Error("Game already exists")    
+            let newGame = GameSession.Init()
+            updateGame newGame
+            return Success(newGame.Guid)
         }
 
     [<Remote>]
@@ -65,7 +73,8 @@ module Remoting =
             (registerRandomDeckPlayer playerName)
             (fun (player, newGame) ->
                 updateGame newGame
-                Success (player.Guid))
+                Success (player.Guid)
+            )
             (Error ("Cannot register player"))
 
     [<Remote>]
@@ -75,7 +84,8 @@ module Remoting =
             (registerRandomDeckPlayerWithClass playerName playerClass)
             (fun (player, newGame) ->
                 updateGame newGame
-                Success (player.Guid))
+                Success (player.Guid)
+            )
             (Error ("Cannot register player"))
 
     [<Remote>]
@@ -95,11 +105,16 @@ module Remoting =
             gameGuid
             (fun game ->
                 getPlayer playerGuid game
-                |> Option.bind(fun player -> drawCard player game)
+                |> Option.bind(fun player ->
+                    let success, newGame = drawCard player game
+                    match success with
+                    | Some card-> Some (card, newGame)
+                    | None -> None)
             )
             (fun (newCard, newGame) ->
                 updateGame newGame
-                Success(Card.getCardById newCard))
+                Success(newCard)
+            )
             (Error("Cannot draw card"))
 
     [<Remote>]
@@ -127,7 +142,8 @@ module Remoting =
             )
             (fun newGame ->
                 updateGame newGame
-                Success("Successfully use hero power"))
+                Success("Successfully use hero power")
+            )
             (Error("Cannot use hero power"))
 
     [<Remote>]
@@ -171,3 +187,46 @@ module Remoting =
             | None -> return Error("Cannot get card")
         }
         |> Async.RunSynchronously
+
+    [<Remote>]
+    let GetActivePlayerGuid (gameGuid : string) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                Some game.ActivePlayerGuid
+            )
+            (fun guid -> Success(guid))
+            (Error("Cannot get active player"))
+        
+    [<Remote>]
+    let StartGame (gameGuid : string) =
+        respondAsync
+            gameGuid
+            (fun game -> startGame game)
+            (fun newGame -> 
+                updateGame newGame
+                Success("Game started")
+            )
+            (Error("Cannot start game"))
+
+    [<Remote>]
+    let GetGameLastChangedTime (gameGuid : string) =
+        async {
+            match getGameTime (gameGuid) with
+            | Some time -> return Success(time.Ticks)
+            | None -> return Error("Cannot get game time")
+        }
+        |> Async.RunSynchronously
+
+    [<Remote>]
+    let EndTurn (playerGuid : string) (gameGuid : string) =
+        respondAsync
+            gameGuid
+            (fun game -> 
+                if playerGuid <> game.ActivePlayerGuid then None
+                else endTurn game)
+            (fun newGame ->
+                updateGame newGame
+                Success("Turn ended")
+            )
+            (Error ("Current player is not active or current phase is not Playing"))

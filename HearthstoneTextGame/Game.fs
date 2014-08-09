@@ -9,13 +9,13 @@ module Game =
     let initPlayer name =
         { Player.Empty with Name = name
                             HeroClass = "Mage"
-                            HeroPower = (Hero.getHeroPower "Mage" true, false)
+                            HeroPower = Hero.getHeroPower "Mage" true
                             Deck = Deck.getRandomDeck "Mage" }
 
     let initPlayerWithDeck name deck = 
         { Player.Empty with Name = name
                             HeroClass = deck.DeckClass
-                            HeroPower = (Hero.getHeroPower deck.DeckClass true, false)
+                            HeroPower = Hero.getHeroPower deck.DeckClass true
                             Deck = deck }               
 
     let getPlayer (playerGuid : string) (game : GameSession) =
@@ -31,7 +31,7 @@ module Game =
         | false -> Some (result |> List.head)
 
     let addPlayer (player : Player) (game : GameSession) =
-        if game.Players |> List.length = 2 then None
+        if game.PlayerCount = 2 then None
         else Some { game with Players = player :: game.Players }
 
     let registerPlayer (playerName : string) (deck : Deck) (game : GameSession) =
@@ -86,20 +86,21 @@ module Game =
     let drawCard (player : Player) (game : GameSession) =
         if player.Deck.RemainingCardsCount > 0 then  
             let cardDraw, remainDeck = Deck.drawCardFromDeck player.Deck
-            let newHand = Utility.insert cardDraw (player.Hand |> List.length) player.Hand
+            let cardDrawOnHand = { Cost = cardDraw.Cost.Value; Card = cardDraw }
+            let newHand = Utility.insert cardDrawOnHand (player.Hand |> List.length) player.Hand
             let newPlayer = { player with Hand = newHand; Deck = remainDeck }
             let newGame = updatePlayerToGame newPlayer game
-            Some (cardDraw, newGame)
+            Some cardDraw, newGame
         else
-            None
+            None, game
 
     let useHeroPower (player : Player) (target : ICharacter option) (game : GameSession) =
-        match player.HeroPower with
-        | (_, true) -> None
-        | (heroPower, false) ->
-            let newPlayer = { player with HeroPower = (heroPower, true) }
+        if player.CurrentMana < 2 then None
+        else if player.HeroPowerUsed then None
+        else
+            let newPlayer = { player with HeroPowerUsed = true; CurrentMana = player.CurrentMana - 2 }
             let newGame = updatePlayerToGame newPlayer game
-            match (player.HeroPower |> fst).Id with
+            match player.HeroPower.Id with
             | "CS2_034" (* Fireblast *) ->
                 let newTarget = target.Value.GetDamage(1)
                 Some <| updateICharToGame [newTarget] newGame
@@ -133,11 +134,9 @@ module Game =
                 let newTarget = target.Value.GetHeal(2)
                 Some <| updateICharToGame [newTarget] newGame
             | "CS2_056" (* Life Tap *) ->
-                drawCard newPlayer newGame
-                |> Option.map(fun (newCard, aNewGame) ->
-                    let newHeroCharacter = (newPlayer.HeroCharacter :> ICharacter).GetDamage(2) :?> HeroCharacter
-                    updateICharToGame [newHeroCharacter] aNewGame
-                    )
+                let _, newGame = drawCard newPlayer newGame
+                let newHeroCharacter = (newPlayer.HeroCharacter :> ICharacter).GetDamage(2) :?> HeroCharacter
+                Some <| updateICharToGame [newHeroCharacter] newGame
             | "CS2_102" (* Armour Up! *) ->
                 let newArmour = newPlayer.HeroCharacter.Armour + 2
                 let newHeroChar = { newPlayer.HeroCharacter with Armour = newArmour }
@@ -165,7 +164,7 @@ module Game =
         else None
 
     let findTargetForHeroPower (player : Player) (game : GameSession) =
-        Hero.heroPowers |> List.tryFind(fun e -> e = fst player.HeroPower)
+        Hero.heroPowers |> List.tryFind(fun e -> e = player.HeroPower)
         |> Option.bind(fun heroPower ->
             heroPower.Target |> Option.bind(fun target -> 
                 getOpponent player.Guid game |> Option.map(fun opponent ->
@@ -194,3 +193,44 @@ module Game =
                     )
                 )
             )
+
+    let startGame (game : GameSession) =
+        if game.PlayerCount <> 2 || game.CurrentPhase <> NotStarted then None
+        else
+            let startPlayer = Random().Next(2) |> List.nth game.Players
+            let secondPlayer = (getOpponent startPlayer.Guid game).Value
+            let newSecondPlayer = { secondPlayer with Hand = { Cost = 0; Card = Card.TheCoin } :: secondPlayer.Hand}
+            let newGame = updatePlayerToGame newSecondPlayer game
+            let _, newGameWithDrawCard = drawCard startPlayer newGame
+            Some { newGameWithDrawCard with ActivePlayerGuid = startPlayer.Guid; CurrentPhase = Playing }
+
+            
+
+    let endTurn (game : GameSession) =
+        if game.CurrentPhase <> Playing then None
+        else
+            let mutable newGame = game
+            // Activate trigger in endTurn of current Player
+            // DO
+
+            
+            // Set activePlayer to opponent and go to next phase
+            let opp = (getOpponent game.ActivePlayerGuid game).Value
+            newGame <- { game with ActivePlayerGuid = opp.Guid }
+
+
+            // Activate trigger in beginTurn of Opp
+            // DO
+        
+            // Draw card
+            let _, aGame = drawCard (getPlayer newGame.ActivePlayerGuid newGame).Value newGame
+            newGame <- aGame
+
+            // Increase mana for ActivePlayer
+            let tempPlayer = (getPlayer newGame.ActivePlayerGuid newGame).Value
+            let maxMana = if tempPlayer.MaxMana = 10 then 10 else tempPlayer.MaxMana + 1
+            let newPlayer = { tempPlayer with MaxMana = maxMana
+                                              CurrentMana = maxMana }
+
+            // Set player and go to next phase
+            Some <| updatePlayerToGame newPlayer newGame

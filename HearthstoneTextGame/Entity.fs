@@ -77,7 +77,7 @@ module Entity =
           Rarity : string option
           Race : string option
           CardClass : string option
-          Cost : int
+          Cost : int option
           Attack : int option
           Health : int option
           Durability : int option
@@ -93,12 +93,16 @@ module Entity =
               Rarity = None
               Race = None
               CardClass = None
-              Cost = 0
+              Cost = None
               Attack = None
               Health = None
               Durability = None
               Text = None
               Mechanics = [] }
+
+    type CardOnHand =
+        { Cost : int
+          Card : Card }
 
     type Deck =
         { Name : string
@@ -237,10 +241,11 @@ module Entity =
         { Guid : string
           Name : string
           HeroClass : string
-          HeroPower : HeroPower * bool
+          HeroPower : HeroPower
+          HeroPowerUsed : bool
           BonusSpellPower : int
           Deck : Deck
-          Hand : string list
+          Hand : CardOnHand list
           HeroCharacter : HeroCharacter
           MinionPosition : Minion list
           ActiveWeapon : Weapon option
@@ -254,7 +259,8 @@ module Entity =
           { Guid = Guid.NewGuid().ToString()
             Name = "EmptyPlayer"
             HeroClass = ""
-            HeroPower = (HeroPower.Empty, false)
+            HeroPower = HeroPower.Empty
+            HeroPowerUsed = false
             BonusSpellPower = 0
             Deck = Deck.Empty
             Hand = []
@@ -264,13 +270,25 @@ module Entity =
             ActiveSecret = None
             CurrentMana = 0
             MaxMana = 0 }
+    
+    type GamePhase =
+        | NotStarted
+        | Mulligan
+        | Playing
+        | EndGame
 
     type GameSession =
         { Guid : string
-          Players : Player list }
+          Players : Player list
+          ActivePlayerGuid : string
+          CurrentPhase : GamePhase }
+
+        member __.PlayerCount = __.Players |> List.length
 
         override __.ToString() = __.Guid
 
         static member Init () =
             { Guid = Guid.NewGuid().ToString()
-              Players = [] }
+              Players = []
+              ActivePlayerGuid = ""
+              CurrentPhase = GamePhase.NotStarted }

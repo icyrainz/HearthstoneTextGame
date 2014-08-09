@@ -22,26 +22,52 @@ module Client =
         }
         |> Async.Start
 
+    type Style =
+        | Green
+        | Default
+
+    let btn text (style : Style) = 
+        let styleClass =
+            match style with
+            | Green -> "success"
+            | Default -> "default"
+        Button [Attr.Type "button"; Attr.Class ("btn btn-block btn-" + styleClass); Text text]
+
+    type GameClient () =
+        member val Guid = JavaScript.Undefined<string> with get, set
+        member val LastChanged = JavaScript.Undefined<int64> with get, set
+        member val ActivePlayerGuid = JavaScript.Undefined<string> with get, set
+        member val LeftPlayer = JavaScript.Undefined<Player> with get, set
+        member val RightPlayer = JavaScript.Undefined<Player> with get, set
+        member __.Exist () = __.Guid <> JavaScript.Undefined<string>
+        member __.HasLeftPlayer () = __.LeftPlayer <> JavaScript.Undefined<Player>
+        member __.HasRightPlayer () = __.RightPlayer <> JavaScript.Undefined<Player>
+        member __.Clear() =
+            __.Guid <- JavaScript.Undefined<string>
+            __.LastChanged <- JavaScript.Undefined<int64> 
+            __.LeftPlayer <- JavaScript.Undefined<Player>
+            __.RightPlayer <- JavaScript.Undefined<Player>
+
     [<Inline " updatePopover() ">]
     let updatePopover = ()
 
     let Main () =
 
-        let currentGameGuid = ref ""
+        let currentGame = GameClient()
         let gameGuidLabel = Span [Text "[None]"]
 
-        let newGameButton = Button [Attr.Type "button"; Attr.Class "btn btn-success btn-block"; Text "New Game"]
-        let registerPlayerButton = Button [Attr.Type "button"; Attr.Class "btn btn-default btn-block"; Text "Register"]
-        let testButton = Button [Attr.Type "button"; Attr.Class "btn btn-default btn-block"; Text "Test"]
+        let newGameButton = btn "NewGame" Green
+        let registerPlayerButton = btn "Register" Default
+        let startGameButton = btn "Start Game" Default
 
-        let leftPlayer = ref JavaScript.Undefined<Player>
-        let leftPlayerUseHeroPowerButton = Button [Attr.Type "button"; Attr.Class "btn btn-default btn-block"; Text "Use Hero Power"]
+        let leftPlayerEndTurnButton = btn "End Turn" Default
+        let leftPlayerUseHeroPowerButton = btn "Use Hero Power" Default
         let leftPlayerHand = UL [Attr.Class "list-group"]
-        let leftPlayerdrawCardButton = Button [Attr.Type "button"; Attr.Class "btn btn-default btn-block"; Text "DrawCard"]
+//        let leftPlayerdrawCardButton = Button [Attr.Type "button"; Attr.Class "btn btn-default btn-block"; Text "DrawCard"]
         let leftPlayerBoard = UL [Attr.Class "list-group"]
         let leftPlayerManaBar = 
             Div [Attr.Class "progress"] -< [
-                Div [Attr.Class "progress-bar progress-bar-striped active"
+                Div [Attr.Class "progress-bar progress-bar-striped"
                      Attr.NewAttr "role" "progressbar"
                      Attr.Style "width: 0%;"
                      Id "proggressbarLunused"]
@@ -51,7 +77,7 @@ module Client =
                      Id "proggressbarLused"]
             ]
         let leftPlayerInfoTable = 
-            Table [Attr.Class "table table-hover"] -< [
+            Table [Attr.Class "table table-hover"; Id "infoLeft"] -< [
                 THead [] -< [
                     TR [] -< [
                         TH [Text "field"]
@@ -82,14 +108,13 @@ module Client =
                 ]
             ]
 
-
-        let rightPlayer = ref JavaScript.Undefined<Player>
+        let rightPlayerEndTurnButton = btn "End Turn" Default
         let rightPlayerHand = UL [Attr.Class "list-group"]
-        let rightPlayerdrawCardButton = Button [Attr.Type "button"; Attr.Class "btn btn-default btn-block"; Text "DrawCard"]
+//        let rightPlayerdrawCardButton = Button [Attr.Type "button"; Attr.Class "btn btn-default btn-block"; Text "DrawCard"]
         let rightPlayerBoard = UL [Attr.Class "list-group"]
         let rightPlayerManaBar = 
             Div [Attr.Class "progress"] -< [
-                Div [Attr.Class "progress-bar progress-bar-striped active"
+                Div [Attr.Class "progress-bar progress-bar-striped"
                      Attr.NewAttr "role" "progressbar"
                      Attr.Style "width: 0%;"
                      Id "proggressbarRunused"]
@@ -99,7 +124,7 @@ module Client =
                      Id "proggressbarRused"]
             ]
         let rightPlayerInfoTable = 
-            Table [Attr.Class "table table-hover"] -< [
+            Table [Attr.Class "table table-hover"; Id "infoRight"] -< [
                 THead [] -< [
                     TR [] -< [
                         TH [Text "field"]
@@ -142,20 +167,6 @@ module Client =
         let openModalButton =
             Button [Attr.NewAttr "data-toggle" "modal"
                     Attr.NewAttr "data-target" "#askModal"]
-
-        let addItemsToAsk (items : string list) (callback : string -> unit) =
-            JQuery.Of(askItems.Dom).Empty().Ignore
-            items |> List.iter(fun e ->
-                let newItem = LI [Attr.Class "list-group-item"; Text e]
-                askItems.Append(newItem)
-                newItem |>! OnClick (fun evt m ->
-                    JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore
-                    JQuery.Of(saveItemButton.Dom).Unbind("click").Ignore
-
-                    JQuery.Of(evt.Dom).AddClass("active").Ignore
-                    JQuery.Of(saveItemButton.Dom).Click(fun _ _ -> callback evt.Text).Ignore
-                ) |> ignore)
-            JQuery.Of(openModalButton.Dom).Click().Ignore
 
         let modalDiv =
             Div [Attr.Class "modal fade"
@@ -220,90 +231,172 @@ module Client =
             newItem
 
         let clearGame () =
+            currentGame.Clear()
             JQuery.Of("[id^=leftPlayer]").Text("[None]").Ignore
             JQuery.Of(leftPlayerHand.Dom).Children().Remove().Ignore
-            JQuery.Of(leftPlayerdrawCardButton.Dom).FadeOut().Ignore
+            JQuery.Of("#infoLeft").Css("background-color", "").Ignore
+//            JQuery.Of(leftPlayerdrawCardButton.Dom).FadeOut().Ignore
+            JQuery.Of(leftPlayerEndTurnButton.Dom)
+                    .RemoveClass("btn-success")
+                    .RemoveClass("btn-warning")
+                    .Attr("disabled", "true").Ignore
 
             JQuery.Of("[id^=rightPlayer]").Text("[None]").Ignore
             JQuery.Of(rightPlayerHand.Dom).Children().Remove().Ignore
-            JQuery.Of(rightPlayerdrawCardButton.Dom).FadeOut().Ignore
+            JQuery.Of("#infoRight").Css("background-color", "").Ignore
+//            JQuery.Of(rightPlayerdrawCardButton.Dom).FadeOut().Ignore
+            JQuery.Of(rightPlayerEndTurnButton.Dom)
+                .RemoveClass("btn-success")
+                .RemoveClass("btn-warning")
+                .Attr("disabled", "true").Ignore
 
         let newGame gameGuid =
             clearGame()
-            currentGameGuid := gameGuid
-            JQuery.Of(gameGuidLabel.Dom).Text(gameGuid).Ignore
-
-            leftPlayer := JavaScript.Undefined<Player>
-            rightPlayer := JavaScript.Undefined<Player>
+            currentGame.Guid <- gameGuid
+            JQuery.Of(gameGuidLabel.Dom).Text(gameGuid + " " + (string currentGame.LastChanged)).Ignore
+            match Remoting.GetGameLastChangedTime currentGame.Guid with
+            | Success time -> currentGame.LastChanged <- time
+            | Error msg -> JavaScript.Alert(msg)
 
         let updateMana now max playerGuid =
-            if playerGuid = (!leftPlayer).Guid then
+            JQuery.Of("#proggressbarLunused").RemoveClass("active").Ignore
+            JQuery.Of("#proggressbarRunused").RemoveClass("active").Ignore
+            if playerGuid = currentGame.LeftPlayer.Guid then
                 JQuery.Of("#proggressbarLunused")
+                    .AddClass("active")
                     .Css("width", (int(now) * 10).ToString() + "%").Ignore
                 JQuery.Of("#proggressbarLused")
                     .Css("width", ((int(max) - int(now)) * 10).ToString() + "%").Ignore
             else
                 JQuery.Of("#proggressbarRunused")
+                    .AddClass("active")
                     .Css("width", (int(now) * 10).ToString() + "%").Ignore
                 JQuery.Of("#proggressbarRused")
                     .Css("width", ((int(max) - int(now)) * 10).ToString() + "%").Ignore
 
         let updateLeftPlayer (player) =
-            leftPlayer := player
-            JQuery.Of("#leftPlayerName").Text((!leftPlayer).Name).Ignore
-            JQuery.Of("#leftPlayerClass").Text((!leftPlayer).HeroClass).Ignore
-            JQuery.Of("#leftPlayerHeroPower").Text((fst (!leftPlayer).HeroPower).Name).Ignore
-            match snd (!leftPlayer).HeroPower with
-            | true -> JQuery.Of(leftPlayerUseHeroPowerButton.Dom).RemoveClass("btn-success").AddClass("btn-error").Attr("disabled", "true").Ignore
-            | false -> JQuery.Of(leftPlayerUseHeroPowerButton.Dom).RemoveClass("btn-error").AddClass("btn-success").RemoveAttr("disabled").Ignore
-            JQuery.Of("#leftPlayerRemainingCardsCount").Text(string <| List.length (!leftPlayer).Deck.CardIdList).Ignore
-            JQuery.Of("#leftPlayerHealth").Text((!leftPlayer).HeroCharacter.Hp.ToString()).Ignore
-            JQuery.Of(leftPlayerdrawCardButton.Dom).FadeIn().Ignore
+            currentGame.LeftPlayer <- player
+            let isActive = currentGame.LeftPlayer.Guid = currentGame.ActivePlayerGuid
+            if isActive then
+                JQuery.Of("#infoLeft").Css("background-color", "lightyellow").Ignore
+                JQuery.Of(leftPlayerEndTurnButton.Dom)
+                    .RemoveClass("btn-success")
+                    .AddClass("btn-warning")
+                    .RemoveAttr("disabled").Ignore
+            else
+                JQuery.Of("#infoLeft").Css("background-color", "").Ignore
+                JQuery.Of(leftPlayerEndTurnButton.Dom)
+                    .RemoveClass("btn-success")
+                    .RemoveClass("btn-warning")
+                    .Attr("disabled", "true").Ignore
+
+            JQuery.Of("#leftPlayerName").Text(currentGame.LeftPlayer.Name).Ignore
+            JQuery.Of("#leftPlayerClass").Text(currentGame.LeftPlayer.HeroClass).Ignore
+            JQuery.Of("#leftPlayerHeroPower").Text(currentGame.LeftPlayer.HeroPower.Name).Ignore
+            match (not currentGame.LeftPlayer.HeroPowerUsed) && isActive with
+            | true -> JQuery.Of(leftPlayerUseHeroPowerButton.Dom).AddClass("btn-success").RemoveAttr("disabled").Ignore
+            | false -> JQuery.Of(leftPlayerUseHeroPowerButton.Dom).RemoveClass("btn-success").Attr("disabled", "true").Ignore
+            JQuery.Of("#leftPlayerRemainingCardsCount").Text(string <| List.length currentGame.LeftPlayer.Deck.CardIdList).Ignore
+            JQuery.Of("#leftPlayerHealth").Text(currentGame.LeftPlayer.HeroCharacter.Hp.ToString()).Ignore
+//            JQuery.Of(leftPlayerdrawCardButton.Dom).FadeIn().Ignore
+            
+            updateMana currentGame.LeftPlayer.CurrentMana currentGame.LeftPlayer.MaxMana currentGame.LeftPlayer.Guid
 
             JQuery.Of(leftPlayerHand.Dom).Children().Remove().Ignore
-            (!leftPlayer).Hand |> List.iter(fun item -> 
-                match Remoting.GetCard item with
-                | Success card ->
-                    cardTemplateDiv card.Name card.Id |> leftPlayerHand.Append
-                | Error msg -> JavaScript.Alert(msg))
+            currentGame.LeftPlayer.Hand |> List.iter(fun card -> cardTemplateDiv card.Card.Name card.Card.Id |> leftPlayerHand.Append)
             updatePopover
 
         let updateRightPlayer (player) =
-            rightPlayer := player
-            JQuery.Of("#rightPlayerName").Text((!rightPlayer).Name).Ignore
-            JQuery.Of("#rightPlayerClass").Text((!rightPlayer).HeroClass).Ignore
-            JQuery.Of("#rightPlayerHeroPower").Text((fst (!rightPlayer).HeroPower).Name).Ignore
-            JQuery.Of("#rightPlayerRemainingCardsCount").Text(string <| List.length (!rightPlayer).Deck.CardIdList).Ignore
-            JQuery.Of("#rightPlayerHealth").Text((!rightPlayer).HeroCharacter.Hp.ToString()).Ignore
-            JQuery.Of(rightPlayerdrawCardButton.Dom).FadeIn().Ignore
+            currentGame.RightPlayer <- player
+            let isActive = currentGame.RightPlayer.Guid = currentGame.ActivePlayerGuid
+            if isActive then
+                JQuery.Of("#infoRight").Css("background-color", "lightyellow").Ignore
+                JQuery.Of(rightPlayerEndTurnButton.Dom)
+                    .RemoveClass("btn-success")
+                    .AddClass("btn-warning")
+                    .RemoveAttr("disabled").Ignore
+            else
+                JQuery.Of("#infoRight").Css("background-color", "").Ignore
+                JQuery.Of(rightPlayerEndTurnButton.Dom)
+                    .RemoveClass("btn-success")
+                    .RemoveClass("btn-warning")
+                    .Attr("disabled", "true").Ignore
 
+            JQuery.Of("#rightPlayerName").Text(currentGame.RightPlayer.Name).Ignore
+            JQuery.Of("#rightPlayerClass").Text(currentGame.RightPlayer.HeroClass).Ignore
+            JQuery.Of("#rightPlayerHeroPower").Text(currentGame.RightPlayer.HeroPower.Name).Ignore
+            JQuery.Of("#rightPlayerRemainingCardsCount").Text(string <| List.length currentGame.RightPlayer.Deck.CardIdList).Ignore
+            JQuery.Of("#rightPlayerHealth").Text(currentGame.RightPlayer.HeroCharacter.Hp.ToString()).Ignore
+//            JQuery.Of(rightPlayerdrawCardButton.Dom).FadeIn().Ignore
+            
+            updateMana currentGame.RightPlayer.CurrentMana currentGame.RightPlayer.MaxMana currentGame.RightPlayer.Guid
+
+            JQuery.Of(rightPlayerHand.Dom).Children().Remove().Ignore
+            currentGame.RightPlayer.Hand |> List.iter(fun card -> cardTemplateDiv card.Card.Name card.Card.Id |> rightPlayerHand.Append)
+            updatePopover
 
         let updatePlayer playerGuid =
-            doAsync (Remoting.GetPlayer playerGuid (!currentGameGuid))
+            doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
                 (fun res -> 
                     match res with
                     | Success player -> 
-                        if (!leftPlayer) = JavaScript.Undefined<Player> || (!leftPlayer).Guid = player.Guid then
+                        if (not <| currentGame.HasLeftPlayer()) || currentGame.LeftPlayer.Guid = player.Guid then
                             updateLeftPlayer player
-                        else if (!rightPlayer) = JavaScript.Undefined<Player> || (!rightPlayer).Guid = player.Guid then
+                        else if (not <| currentGame.HasRightPlayer()) || currentGame.RightPlayer.Guid = player.Guid then
                             updateRightPlayer player
                     | Error msg -> JavaScript.Alert(msg))
         
         let updatePlayers () =
-            [ if (!leftPlayer) <> JavaScript.Undefined<Player> then yield (!leftPlayer).Guid
-              if (!rightPlayer) <> JavaScript.Undefined<Player> then yield (!rightPlayer).Guid ]
-            |> List.iter(fun e -> updatePlayer e)
+            if currentGame.Exist() then
+                match Remoting.GetGameLastChangedTime currentGame.Guid with
+                | Error msg -> JavaScript.Log(msg)
+                | Success time ->
+                    if time > currentGame.LastChanged then
+                        doAsync (Remoting.GetActivePlayerGuid(currentGame.Guid))
+                            (fun ret -> match ret with
+                                        | Success guid -> currentGame.ActivePlayerGuid <- guid
+                                        | Error msg -> JavaScript.Alert(msg)
+                            )
+                        [ if currentGame.HasLeftPlayer() then yield currentGame.LeftPlayer.Guid
+                          if currentGame.HasRightPlayer() then yield currentGame.RightPlayer.Guid ]
+                        |> List.iter(fun e -> updatePlayer e)
+                        currentGame.LastChanged <- time
+                        JQuery.Of(gameGuidLabel.Dom).Text(currentGame.Guid + " " + (string currentGame.LastChanged)).Ignore
 
         let playCard (cardId : string) (player : Player) =
             ()
 
-        let addCardToHand (cardName : string) (cardId :string) (hand : Element) =
-            cardTemplateDiv cardName cardId |> hand.Append
-            updatePopover
+        let addItemsToAsk (items : string list) (callback : string -> unit) =
+            JQuery.Of(askItems.Dom).Empty().Ignore
+            items |> List.iter(fun e ->
+                let newItem = LI [Attr.Class "list-group-item"; Text e]
+                askItems.Append(newItem)
+                newItem |>! OnClick (fun evt m ->
+                    JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore
+                    JQuery.Of(saveItemButton.Dom).Unbind("click").Ignore
+
+                    JQuery.Of(evt.Dom).AddClass("active").Ignore
+                    JQuery.Of(saveItemButton.Dom).Click(fun _ _ -> callback evt.Text).Ignore
+                ) |> ignore)
+            JQuery.Of(openModalButton.Dom).Click().Ignore
+
+        let backgroundTask = 
+            JavaScript.SetInterval
+                (fun _ ->
+                    updatePlayers()
+                )
+                1000
 
         let setupButton =
-            JQuery.Of(testButton.Dom)
-                .Click(fun _ _ -> ()
+            
+            JQuery.Of(startGameButton.Dom)
+                .Click(fun _ _ ->
+                    doAsync (Remoting.StartGame currentGame.Guid)
+                        (fun ret ->
+                            match ret with
+                            | Success msg -> JavaScript.Alert(msg)
+                            | Error msg -> JavaScript.Alert(msg)
+                        )
                 ).Ignore
             
             JQuery.Of(newGameButton.Dom)
@@ -316,9 +409,9 @@ module Client =
             JQuery.Of(registerPlayerButton.Dom)
                 .Click(fun _ _ ->
                     let playerName =
-                        if (!leftPlayer) = JavaScript.Undefined<Player> then
+                        if not <| currentGame.HasLeftPlayer() then
                             Some "LeftPlayer"
-                        else if (!rightPlayer) = JavaScript.Undefined<Player> then
+                        else if not <| currentGame.HasRightPlayer() then
                             Some "RightPlayer"
                         else
                             None
@@ -326,7 +419,7 @@ module Client =
                     | Some name ->
                         let classList = Remoting.GetPlayableClass()
                         addItemsToAsk classList (fun selection ->
-                            doAsync (Remoting.RegisterPlayerWithClass name selection (!currentGameGuid)) 
+                            doAsync (Remoting.RegisterPlayerWithClass name selection currentGame.Guid) 
                                 (fun res ->
                                     match res with
                                     | Success playerGuid -> updatePlayer playerGuid
@@ -334,67 +427,85 @@ module Client =
                         )
                     | None -> ()).Ignore
 
-            JQuery.Of(leftPlayerdrawCardButton.Dom)
-                .Click(fun _ _ ->
-                    doAsync (Remoting.DrawCard (!leftPlayer).Guid (!currentGameGuid))
-                        (fun res ->
-                            match res with
-                            | Success card ->
-                                addCardToHand card.Name card.Id leftPlayerHand
-                                updatePlayer (!leftPlayer).Guid
-                            | Error msg ->
-                                JavaScript.Alert(msg))).Hide().Ignore
-
-            JQuery.Of(rightPlayerdrawCardButton.Dom)
-                .Click(fun _ _ ->
-                    doAsync (Remoting.DrawCard (!rightPlayer).Guid (!currentGameGuid))
-                        (fun res ->
-                            match res with
-                            | Success card ->
-                                addCardToHand card.Name card.Id rightPlayerHand
-                                updatePlayer (!rightPlayer).Guid
-                            | Error msg ->
-                                JavaScript.Alert(msg))).Hide().Ignore
+//            JQuery.Of(leftPlayerdrawCardButton.Dom)
+//                .Click(fun _ _ ->
+//                    doAsync (Remoting.DrawCard currentGame.LeftPlayer.Guid currentGame.Guid)
+//                        (fun res ->
+//                            match res with
+//                            | Success card ->
+//                                updatePlayer currentGame.LeftPlayer.Guid
+//                            | Error msg ->
+//                                JavaScript.Alert(msg))).Hide().Ignore
+//
+//            JQuery.Of(rightPlayerdrawCardButton.Dom)
+//                .Click(fun _ _ ->
+//                    doAsync (Remoting.DrawCard (!rightPlayer).Guid currentGame.Guid)
+//                        (fun res ->
+//                            match res with
+//                            | Success card ->
+//                                updatePlayer (!rightPlayer).Guid
+//                            | Error msg ->
+//                                JavaScript.Alert(msg))).Hide().Ignore
 
             JQuery.Of(openModalButton.Dom).Hide().Ignore
 
-            JQuery.Of(leftPlayerUseHeroPowerButton.Dom)
+            JQuery.Of(leftPlayerEndTurnButton.Dom).Attr("disabled", "true")
                 .Click(fun _ _ ->
-                    doAsync (Remoting.DoesHeroPowerNeedTarget (fst (!leftPlayer).HeroPower).Name )
+                    doAsync (Remoting.EndTurn currentGame.LeftPlayer.Guid currentGame.Guid)
+                        (fun ret ->
+                            match ret with
+                            | Success msg -> JavaScript.Log(msg)
+                            | Error msg -> JavaScript.Log(msg) 
+                        )
+                    )
+                .Ignore
+
+            JQuery.Of(rightPlayerEndTurnButton.Dom).Attr("disabled", "true")
+                .Click(fun _ _ ->
+                    doAsync (Remoting.EndTurn currentGame.RightPlayer.Guid currentGame.Guid)
+                        (fun ret ->
+                            match ret with
+                            | Success msg -> JavaScript.Log(msg)
+                            | Error msg -> JavaScript.Log(msg) 
+                        )
+                    )
+                .Ignore
+            
+            
+            JQuery.Of(leftPlayerUseHeroPowerButton.Dom)
+                .Attr("disabled", "true")
+                .Click(fun _ _ ->
+                    doAsync (Remoting.DoesHeroPowerNeedTarget (currentGame.LeftPlayer.HeroPower.Name))
                         (fun needTarget ->
                             match needTarget with
                             | Success true ->
-                                doAsync (Remoting.FindTargetForHeroPower (!leftPlayer).Guid (!currentGameGuid))
+                                doAsync (Remoting.FindTargetForHeroPower currentGame.LeftPlayer.Guid currentGame.Guid)
                                     (fun res ->
                                         match res with
                                         | Success items ->
                                             let newItems =
                                                 items |> List.map (fun item ->
-                                                    match Remoting.GetICharName (item) (!currentGameGuid) with
+                                                    match Remoting.GetICharName (item) currentGame.Guid with
                                                     | Success name -> name
                                                     | Error msg -> "Fail to load name !"
                                                 )
                                             let itemNameWithGuid = List.zip newItems items
                                             addItemsToAsk newItems (fun choice ->
                                                 let selGuid = itemNameWithGuid |> List.find(fun (name, guid) -> name = choice) |> snd
-                                                doAsync (Remoting.UseHeroPower (!leftPlayer).Guid (Some selGuid) (!currentGameGuid))
+                                                doAsync (Remoting.UseHeroPower currentGame.LeftPlayer.Guid (Some selGuid) currentGame.Guid)
                                                     (fun afterUse ->
                                                         match afterUse with
-                                                        | Success msg ->
-                                                            JavaScript.Alert(msg)
-                                                            updatePlayers()
+                                                        | Success msg -> JavaScript.Alert(msg)
                                                         | Error msg -> JavaScript.Alert(msg)
                                                     )
                                             )
                                         | Error msg -> ()
                                     )
                             | Success false ->
-                                doAsync (Remoting.UseHeroPower (!leftPlayer).Guid None (!currentGameGuid))
+                                doAsync (Remoting.UseHeroPower currentGame.LeftPlayer.Guid None currentGame.Guid)
                                     (fun res ->
                                         match res with
-                                        | Success msg ->
-                                            JavaScript.Alert(msg)
-                                            updatePlayers()
+                                        | Success msg -> JavaScript.Alert(msg)
                                         | Error msg -> JavaScript.Alert(msg)
                                     )
                             | Error msg -> JavaScript.Alert(msg))).Ignore
@@ -407,7 +518,7 @@ module Client =
                     Div [Attr.Class "row clearfix"] -< [
                         Div [Attr.Class "col-sm-4"] -- newGameButton
                         Div [Attr.Class "col-sm-4"] -- registerPlayerButton
-                        Div [Attr.Class "col-sm-4"] -- testButton
+                        Div [Attr.Class "col-sm-4"] -- startGameButton
                     ]
                 ]
                 Div [Attr.Class "panel-footer"] -< [
@@ -425,7 +536,8 @@ module Client =
                     Div [Attr.Class "panel panel-default"] -< [
                         Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Left Player"]
                         Div [Attr.Class "panel-body"] -< [ 
-                            leftPlayerdrawCardButton
+//                            leftPlayerdrawCardButton
+                            leftPlayerEndTurnButton
                             leftPlayerUseHeroPowerButton
                             leftPlayerInfoTable
                             leftPlayerManaBar
@@ -437,7 +549,8 @@ module Client =
                     Div [Attr.Class "panel panel-default"] -< [
                         Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Right Player"]
                         Div [Attr.Class "panel-body"] -< [ 
-                            rightPlayerdrawCardButton
+//                            rightPlayerdrawCardButton
+                            rightPlayerEndTurnButton
                             rightPlayerInfoTable
                             rightPlayerManaBar
                         ]
