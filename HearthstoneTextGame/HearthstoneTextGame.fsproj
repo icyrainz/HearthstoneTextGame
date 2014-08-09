@@ -134,7 +134,7 @@
     <Content Include="Content\reynad_zoo.Warlock.deck">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <None Include="css\pnotify.custom.min.css" />
+    <Content Include="css\pnotify.custom.min.css" />
     <None Include="packages.config" />
     <None Include="hearthstonetextsimulator.pubxml" />
   </ItemGroup>
