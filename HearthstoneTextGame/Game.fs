@@ -213,7 +213,12 @@ module Game =
             // Activate trigger in endTurn of current Player
             // DO
 
-            
+
+            // Reset hero power
+            let cPlayer = (getPlayer game.ActivePlayerGuid game).Value
+            let cPlayerTemp = { cPlayer with HeroPowerUsed = false }
+            newGame <- updatePlayerToGame cPlayerTemp newGame
+         
             // Set activePlayer to opponent and go to next phase
             let opp = (getOpponent game.ActivePlayerGuid game).Value
             newGame <- { game with ActivePlayerGuid = opp.Guid }

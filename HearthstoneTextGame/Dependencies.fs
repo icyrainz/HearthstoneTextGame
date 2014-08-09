@@ -11,7 +11,8 @@ type TwitterBootstrap() =
 [<Require(typeof<TwitterBootstrap>)>]
 [<Sealed>]
 type MyJs() =
-    inherit Resources.BaseResource("main.js")
+    inherit Resources.BaseResource("/", "js/main.js", "js/pnotify.custom.min.js", "css/pnotify.custom.min.css")
+
 
 [<assembly: Require(typeof<MyJs>)>]
 do ()
