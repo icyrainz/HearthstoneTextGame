@@ -44,8 +44,8 @@ module Client =
             __.LeftPlayer <- JavaScript.Undefined<Player>
             __.RightPlayer <- JavaScript.Undefined<Player>
 
-    [<Inline " updatePopover() ">]
-    let updatePopover = ()
+//    [<Inline " setupPopover() ">]
+//    let setupPopover = ()
 
     [<Inline " notify($msg) ">]
     let notify (msg : string) = ()
@@ -55,6 +55,9 @@ module Client =
 
     [<Inline " notifySuccess($msg) ">]
     let notifySuccess (msg : string) = ()
+
+    [<Inline " notifyImage($url) ">]
+    let notifyImage (url : string) = ()
 
     let currentGame = GameClient()
     let gameGuidLabel = Span [Text "[None]"]
@@ -204,18 +207,16 @@ module Client =
     let cardTemplateDiv cardName cardId =
         let newItem = LI [Attr.Class "list-group-item"]
 
-        let cardImgUrl = "http://wow.zamimg.com/images/hearthstone/cards/enus/small/" + cardId + ".png"
+        let cardImgUrl = "http://wow.zamimg.com/images/hearthstone/cards/enus/medium/" + cardId + ".png"
         let previewButton =
             JQuery.Of("<button />")
-                .Attr("type", "button")
                 .AddClass("btn")
                 .AddClass("btn-default")
-                .Attr("data-toggle", "popover")
-                .Attr("rel", "popover")
-                .Attr("id", cardId)
-                .Attr("data-img", cardImgUrl)
-                .Attr("data-default-title", "")
                 .Text("Image")
+                .Click(fun _ _ ->
+                    notifyImage(cardImgUrl)
+                )
+                
         let playCardButton = 
             JQuery.Of("<button />")
                 .Attr("type", "button")
@@ -259,18 +260,15 @@ module Client =
                 ""
         if playerStr = "" then JavaScript.Log("Unable to updatePlayer: " + player.Guid)
         else
-            JavaScript.Log("Update player: " + playerStr)
             let isActive = currentGame.ActivePlayerGuid = player.Guid
             if isActive then
-                JQuery.Of("#" + playerStr + "Info")
-                    .Css("background-color", "lightyellow").Ignore
+                JQuery.Of("#" + playerStr + "Panel").AddClass("panel-success").Ignore
                 JQuery.Of("#" + playerStr + "EndTurnBtn")
                     .RemoveClass("btn-success")
                     .AddClass("btn-warning")
                     .RemoveAttr("disabled").Ignore
             else
-                JQuery.Of("#" + playerStr + "Info")
-                    .Css("background-color", "").Ignore
+                JQuery.Of("#" + playerStr + "Panel").RemoveClass("panel-success").Ignore
                 JQuery.Of("#" + playerStr + "EndTurnBtn")
                     .RemoveClass("btn-success")
                     .RemoveClass("btn-warning")
@@ -292,7 +290,6 @@ module Client =
             player.Hand |> List.iter(fun card ->
                 let newCard = cardTemplateDiv card.Card.Name card.Card.Id
                 JQuery.Of("#" + playerStr + "Hand").Append(JQuery.Of(newCard.Dom)).Ignore)
-            updatePopover
 
     let clearGame () =
         currentGame.Clear()
@@ -300,7 +297,7 @@ module Client =
         JQuery.Of("[rel='emptyChildren']").Children().Remove().Ignore
         [ "left"; "right" ]
         |> List.iter(fun playerStr -> 
-            JQuery.Of("#" + playerStr + "Info").Css("background-color", "").Ignore
+            JQuery.Of("#" + playerStr + "Panel").RemoveClass("panel-success").Ignore
             JQuery.Of("#" + playerStr + "EndTurnBtn")
                 .RemoveClass("btn-success")
                 .RemoveClass("btn-warning")
@@ -403,7 +400,7 @@ module Client =
             1000
 
     let setupButton =
-            
+
         JQuery.Of(startGameButton.Dom)
             .Click(fun _ _ ->
                 if currentGame.Exist() then
@@ -513,7 +510,7 @@ module Client =
 
             Div [Attr.Class "row clearfix"] -< [
                 Div [Attr.Class "col-md-6 column"] -< [
-                    Div [Attr.Class "panel panel-default"] -< [
+                    Div [Attr.Class "panel panel-default"; Id "leftPanel"] -< [
                         Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Left Player"]
                         Div [Attr.Class "panel-body"] -< [ 
                             leftPlayerEndTurnButton
@@ -525,10 +522,11 @@ module Client =
                     leftPlayerHand
                 ]
                 Div [Attr.Class "col-md-6 column"] -< [
-                    Div [Attr.Class "panel panel-default"] -< [
+                    Div [Attr.Class "panel panel-default"; Id "rightPanel"] -< [
                         Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Right Player"]
                         Div [Attr.Class "panel-body"] -< [ 
                             rightPlayerEndTurnButton
+                            rightPlayerUseHeroPowerButton
                             rightPlayerInfoTable
                             rightPlayerManaBar
                         ]

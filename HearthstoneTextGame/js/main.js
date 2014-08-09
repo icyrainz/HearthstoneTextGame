@@ -1,10 +1,23 @@
-﻿var updatePopover = function () {
-    $('button[rel=popover]').popover({
-        html: true,
-        trigger: 'click',
-        content: function () { return '<img src="' + $(this).data('img') + '" />'; }
-    });
-};
+﻿//var popOverSettings = {
+//    html: true,
+//    trigger: 'focus',
+//    selector: '[data-toggle="popover"]', //Sepcify the selector here
+//    content: function () {
+//        return '<img src="' + $(this).data('img') + '" />';
+//    }
+//}
+
+//var setupPopover = function () {
+//    $('body').popover(popOverSettings)
+//}
+
+//var updatePopover = function () {
+//    $('button[rel=popover]').popover({
+//        html: true,
+//        trigger: 'focus',
+//        content: function () { return '<img src="' + $(this).data('img') + '" />'; }
+//    });
+//};
 
 var notify = function (msg) {
     new PNotify({
@@ -40,3 +53,10 @@ var notifyError = function (msg) {
         type: 'error'
     });
 };
+
+var notifyImage = function (url) {
+    new PNotify({
+        title: 'Card Img',
+        text: '<img class="center-block" src="' + url + '" />'
+    });
+}

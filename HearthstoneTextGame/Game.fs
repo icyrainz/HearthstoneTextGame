@@ -215,13 +215,13 @@ module Game =
 
 
             // Reset hero power
-            let cPlayer = (getPlayer game.ActivePlayerGuid game).Value
-            let cPlayerTemp = { cPlayer with HeroPowerUsed = false }
-            newGame <- updatePlayerToGame cPlayerTemp newGame
+            let mutable tempPlayer = (getPlayer game.ActivePlayerGuid game).Value
+            tempPlayer <- { tempPlayer with HeroPowerUsed = false }
+            newGame <- updatePlayerToGame tempPlayer newGame
          
             // Set activePlayer to opponent and go to next phase
-            let opp = (getOpponent game.ActivePlayerGuid game).Value
-            newGame <- { game with ActivePlayerGuid = opp.Guid }
+            let opp = (getOpponent newGame.ActivePlayerGuid newGame).Value
+            newGame <- { newGame with ActivePlayerGuid = opp.Guid }
 
 
             // Activate trigger in beginTurn of Opp
@@ -232,10 +232,10 @@ module Game =
             newGame <- aGame
 
             // Increase mana for ActivePlayer
-            let tempPlayer = (getPlayer newGame.ActivePlayerGuid newGame).Value
+            tempPlayer <- (getPlayer newGame.ActivePlayerGuid newGame).Value
             let maxMana = if tempPlayer.MaxMana = 10 then 10 else tempPlayer.MaxMana + 1
-            let newPlayer = { tempPlayer with MaxMana = maxMana
-                                              CurrentMana = maxMana }
+            tempPlayer <- { tempPlayer with MaxMana = maxMana
+                                            CurrentMana = maxMana }
 
             // Set player and go to next phase
-            Some <| updatePlayerToGame newPlayer newGame
+            Some <| updatePlayerToGame tempPlayer newGame
