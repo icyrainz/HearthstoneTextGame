@@ -80,7 +80,8 @@ module Game =
 
     let playWeapon (weapon : Weapon) (player : Player) (game : GameSession) =
         let newAttackValue = player.HeroCharacter.AttackValue + weapon.Attack
-        let newPlayer = { player with ActiveWeapon = Some weapon; HeroCharacter = { player.HeroCharacter with AttackValue = newAttackValue } }
+        let newPlayer = { player with ActiveWeapon = Some { weapon with CanAttack = true }
+                                      HeroCharacter = { player.HeroCharacter with AttackValue = newAttackValue } }
         Some <| updatePlayerToGame newPlayer game
 
     let drawCard (player : Player) (game : GameSession) =

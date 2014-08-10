@@ -123,8 +123,6 @@
     <Compile Include="Dependencies.fs" />
     <Compile Include="Main.fs" />
     <Content Include="index.html" />
-    <Content Include="js\main.js" />
-    <Content Include="js\pnotify.custom.min.js" />
     <Content Include="Web.config" />
     <Content Include="Global.asax" />
     <Content Include="Setup.fsx" />
@@ -134,9 +132,10 @@
     <Content Include="Content\reynad_zoo.Warlock.deck">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="css\pnotify.custom.min.css" />
+    <Content Include="css\pnotify.custom.min.css" />  
+    <Content Include="js\main.js" />
+    <Content Include="js\pnotify.custom.min.js" />
     <None Include="packages.config" />
-    <None Include="hearthstonetextsimulator.pubxml" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Data">

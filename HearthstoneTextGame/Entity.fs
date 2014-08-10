@@ -126,12 +126,14 @@ module Entity =
         abstract member SetHealth : int -> ICharacter
         abstract member GetDamage : int -> ICharacter
         abstract member GetHeal : int -> ICharacter
+        abstract member CanAttack : unit -> bool
 
     type HeroCharacter =
         { Guid : string
           Hp : int
           Armour : int
           AttackValue : int
+          CanAttack : bool
           HasImmunity : bool }
 
         override __.ToString() = __.Guid
@@ -139,10 +141,10 @@ module Entity =
         interface ICharacter with
             member __.Guid = __.Guid
             member __.Attack = __.AttackValue
-            member __.SetAttack(value) = { __ with AttackValue = value} :> ICharacter
+            member __.SetAttack (value) = { __ with AttackValue = value} :> ICharacter
             member __.Health = __.Hp
-            member __.SetHealth(value) = { __ with Hp = value} :> ICharacter
-            member __.GetDamage(value) =
+            member __.SetHealth (value) = { __ with Hp = value} :> ICharacter
+            member __.GetDamage (value) =
                 let mutable armour = 0
                 let mutable hp = 0
                 if not __.HasImmunity then
@@ -155,12 +157,14 @@ module Entity =
             member __.GetHeal(value) =
                 let hp = __.Hp + Math.Min(value, Config.heroHp - __.Hp)
                 { __ with Hp = hp } :> ICharacter
+            member __.CanAttack () = __.CanAttack
 
         static member Empty =
             { Guid = Guid.NewGuid().ToString()
               Hp = Config.heroHp
               Armour = 0
               AttackValue = 0
+              CanAttack = false
               HasImmunity = false }
 
     type Minion =
@@ -168,6 +172,7 @@ module Entity =
           Card : Card
           Enchantments : string list
           AttackValue : int
+          CanAttack : bool
           CurrentHealth : int
           MaxHealth : int
           HasDivineShield : bool
@@ -184,7 +189,7 @@ module Entity =
                 let maxHealth = value
                 let currentHealth = Math.Min(maxHealth, __.CurrentHealth)
                 { __ with MaxHealth = maxHealth; CurrentHealth = currentHealth} :> ICharacter
-            member __.GetDamage(damage) =
+            member __.GetDamage (damage) =
                 let mutable hasDivineShield = __.HasDivineShield
                 let mutable currentHealth = __.CurrentHealth
                 do
@@ -194,10 +199,11 @@ module Entity =
                         else
                             currentHealth <- __.CurrentHealth - damage
                 { __ with HasDivineShield = hasDivineShield; CurrentHealth = currentHealth } :> ICharacter
-            member __.GetHeal(amount) =
+            member __.GetHeal (amount) =
                 let currentHealth =
                     __.CurrentHealth + Math.Min(amount, __.MaxHealth - __.CurrentHealth)
                 { __ with CurrentHealth = currentHealth } :> ICharacter
+            member __.CanAttack () = __.CanAttack
 
         static member Parse (card : Card) = 
             if card.Type <> "Minion" then None
@@ -206,6 +212,7 @@ module Entity =
                        Card = card
                        Enchantments = []
                        AttackValue = card.Attack.Value
+                       CanAttack = false
                        CurrentHealth = card.Health.Value
                        MaxHealth = card.Health.Value
                        HasDivineShield = false
@@ -214,6 +221,7 @@ module Entity =
     type Weapon =
         { Card : Card
           Attack : int
+          CanAttack : bool
           Durability : int
           Enchantments : string list }
 
@@ -225,6 +233,7 @@ module Entity =
                 Some { Card = card
                        Enchantments = []
                        Attack = card.Attack.Value
+                       CanAttack = false
                        Durability = card.Durability.Value }
 
     type Spell =

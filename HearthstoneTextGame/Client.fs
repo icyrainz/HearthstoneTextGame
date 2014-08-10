@@ -35,6 +35,7 @@ module Client =
         member val ActivePlayerGuid = JavaScript.Undefined<string> with get, set
         member val LeftPlayer = JavaScript.Undefined<Player> with get, set
         member val RightPlayer = JavaScript.Undefined<Player> with get, set
+        member val NeedUpdate = false with get, set
         member __.Exist () = __.Guid <> JavaScript.Undefined<string>
         member __.HasLeftPlayer () = __.LeftPlayer <> JavaScript.Undefined<Player>
         member __.HasRightPlayer () = __.RightPlayer <> JavaScript.Undefined<Player>
@@ -43,9 +44,6 @@ module Client =
             __.LastChanged <- JavaScript.Undefined<int64> 
             __.LeftPlayer <- JavaScript.Undefined<Player>
             __.RightPlayer <- JavaScript.Undefined<Player>
-
-//    [<Inline " setupPopover() ">]
-//    let setupPopover = ()
 
     [<Inline " notify($msg) ">]
     let notify (msg : string) = ()
@@ -72,7 +70,7 @@ module Client =
     let leftPlayerBoard = UL [Attr.Class "list-group"; Id "leftBoard"; Rel "emptyChildren"]
     let leftPlayerManaBar = 
         Div [Attr.Class "progress"] -< [
-            Div [ Attr.Class "progress-bar progress-bar-striped"
+            Div [ Attr.Class "progress-bar"
                   Attr.NewAttr "role" "progressbar"
                   Attr.Style "width: 0%;"
                   Id "leftProggressbarUnused" ]
@@ -119,7 +117,7 @@ module Client =
     let rightPlayerBoard = UL [Attr.Class "list-group"; Id "rightBoard"; Rel "emptyChildren"]
     let rightPlayerManaBar = 
         Div [Attr.Class "progress"] -< [
-            Div [ Attr.Class "progress-bar progress-bar-striped"
+            Div [ Attr.Class "progress-bar"
                   Attr.NewAttr "role" "progressbar"
                   Attr.Style "width: 0%;"
                   Id "rightProggressbarUnused" ]
@@ -204,10 +202,47 @@ module Client =
             ]
         ]
 
-    let cardTemplateDiv cardName cardId =
-        let newItem = LI [Attr.Class "list-group-item"]
+    let cardTemplateDiv (playable : bool) (card : CardOnHand) =
 
-        let cardImgUrl = "http://wow.zamimg.com/images/hearthstone/cards/enus/medium/" + cardId + ".png"
+        let cardImgUrl = "http://wow.zamimg.com/images/hearthstone/cards/enus/medium/" + card.Card.Id + ".png"
+        let previewButton =
+            JQuery.Of("<button />")
+                .AddClass("btn btn-default")
+                .Text("Image")
+                .Click(fun _ _ ->
+                    notifyImage(cardImgUrl)
+                )
+                
+        let playCardButton =
+            let item =
+                JQuery.Of("<button />")
+                    .Attr("type", "button")
+                    .Text("Play")
+                    .Click(fun _ _ ->
+                        ()
+                    )
+            if playable then item.AddClass("btn btn-success")
+            else item.AddClass("btn btn-default")
+
+        let cardInfo =
+            // TODO: change label color when real cost <> card cost
+            let cost = JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-primary").Text(card.Cost.ToString())
+            let name = JQuery.Of("<div />").AddClass("col-xs-8").Text(card.Card.Name)
+            let atk = JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Attack.IsSome then card.Card.Attack.Value.ToString() else "")
+            let hp = JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Health.IsSome then card.Card.Health.Value.ToString() else "")
+            JQuery.Of("<h5/>").AddClass("row").Append(cost).Append(name).Append(atk).Append(hp)
+
+        let newItem = LI []
+        JQuery.Of(newItem.Dom)
+            .AddClass("list-group-item")
+            .Append(JQuery.Of("<div />").AddClass("row").AddClass("clearfix")
+                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(previewButton).Append(playCardButton))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-8").Append(cardInfo))
+            ).Ignore
+        newItem
+
+    let minionTemplateDiv (minion : Minion) =
+        let cardImgUrl = "http://wow.zamimg.com/images/hearthstone/cards/enus/medium/" + minion.Card.Id + ".png"
         let previewButton =
             JQuery.Of("<button />")
                 .AddClass("btn")
@@ -216,33 +251,48 @@ module Client =
                 .Click(fun _ _ ->
                     notifyImage(cardImgUrl)
                 )
-                
-        let playCardButton = 
+        let attackButton = 
             JQuery.Of("<button />")
                 .Attr("type", "button")
                 .AddClass("btn")
                 .AddClass("btn-default")
-                .Text("Play")
+                .Text("Attack")
                 .Click(fun _ _ ->
                     ()
                 )
-        let cardNameSpan =
-            JQuery.Of("<h5/>").Text(cardName)
 
+        let minionInfo =
+            let name = JQuery.Of("<div />").AddClass("col-xs-8").Text(minion.Card.Name)
+            let atk = 
+                let elem = JQuery.Of("<div />").AddClass("col-xs-1").Text(minion.AttackValue.ToString())
+                if minion.AttackValue > minion.Card.Attack.Value then
+                    elem.AddClass("label label-success")
+                else
+                    elem.AddClass("label label-default")
+            let hp =
+                let elem = JQuery.Of("<div />").AddClass("col-xs-1").Text(minion.CurrentHealth.ToString())
+                if minion.CurrentHealth > minion.Card.Health.Value then
+                    elem.AddClass("label label-success")
+                else if minion.CurrentHealth < minion.MaxHealth then
+                    elem.AddClass("label label-danger")
+                else
+                    elem.AddClass("label label-default")
+            JQuery.Of("<h5/>").AddClass("row").Append(name).Append(atk).Append(hp)
+
+        let newItem = LI []
         JQuery.Of(newItem.Dom)
+            .AddClass("list-group-item")
             .Append(JQuery.Of("<div />").AddClass("row").AddClass("clearfix")
-                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(previewButton).Append(playCardButton))
-                .Append(JQuery.Of("<div />").AddClass("col-xs-8").Append(cardNameSpan))).Ignore
+                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(previewButton).Append(attackButton))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-8").Append(minionInfo))
+            ).Ignore
         newItem
 
     let updateMana now max playerGuid =
         let player =
             if playerGuid = currentGame.LeftPlayer.Guid then "left"
             else "right"
-        JQuery.Of("#leftProggressbarUnused").RemoveClass("active").Ignore
-        JQuery.Of("#rightProggressbarUnused").RemoveClass("active").Ignore
         JQuery.Of("#" + player + "ProggressbarUnused")
-            .AddClass("active")
             .Text(now.ToString())
             .Css("width", (int(now) * 10).ToString() + "%").Ignore
         JQuery.Of("#" + player + "ProggressbarUsed")
@@ -264,15 +314,17 @@ module Client =
             if isActive then
                 JQuery.Of("#" + playerStr + "Panel").AddClass("panel-success").Ignore
                 JQuery.Of("#" + playerStr + "EndTurnBtn")
-                    .RemoveClass("btn-success")
+//                    .RemoveClass("btn-success")
                     .AddClass("btn-warning")
                     .RemoveAttr("disabled").Ignore
+                JQuery.Of("#" + playerStr + "ProggressbarUnused").AddClass("progress-bar-striped active").Ignore
             else
                 JQuery.Of("#" + playerStr + "Panel").RemoveClass("panel-success").Ignore
                 JQuery.Of("#" + playerStr + "EndTurnBtn")
-                    .RemoveClass("btn-success")
+//                    .RemoveClass("btn-success")
                     .RemoveClass("btn-warning")
                     .Attr("disabled", "true").Ignore
+                JQuery.Of("#" + playerStr + "ProggressbarUnused").RemoveClass("progress-bar-striped active").Ignore
 
             JQuery.Of("#" + playerStr + "Name").Text(player.Name).Ignore
             JQuery.Of("#" + playerStr + "Class").Text(player.HeroClass).Ignore
@@ -280,7 +332,7 @@ module Client =
             JQuery.Of("#" + playerStr + "RemainingCardsCount").Text(string <| List.length player.Deck.CardIdList).Ignore
             JQuery.Of("#" + playerStr + "Health").Text(player.HeroCharacter.Hp.ToString()).Ignore
             JQuery.Of("#" + playerStr + "UseHeroPowerBtn").FadeIn().Ignore
-            match (not player.HeroPowerUsed) && isActive with
+            match (not player.HeroPowerUsed) && isActive && (player.HeroPower.Cost <= player.CurrentMana) with
             | true -> JQuery.Of("#" + playerStr + "UseHeroPowerBtn").AddClass("btn-success").RemoveAttr("disabled").Ignore
             | false -> JQuery.Of("#" + playerStr + "UseHeroPowerBtn").RemoveClass("btn-success").Attr("disabled", "true").Ignore
             
@@ -288,8 +340,15 @@ module Client =
 
             JQuery.Of("#" + playerStr + "Hand").Children().Remove().Ignore
             player.Hand |> List.iter(fun card ->
-                let newCard = cardTemplateDiv card.Card.Name card.Card.Id
-                JQuery.Of("#" + playerStr + "Hand").Append(JQuery.Of(newCard.Dom)).Ignore)
+                let newCard = cardTemplateDiv (card.Cost <= player.CurrentMana) card
+                JQuery.Of("#" + playerStr + "Hand").Append(JQuery.Of(newCard.Dom)).Ignore
+            )
+
+            JQuery.Of("#" + playerStr + "Board").Children().Remove().Ignore
+            player.MinionPosition |> List.iter(fun minion ->
+                let minion = minionTemplateDiv minion
+                JQuery.Of("#" + playerStr + "Board").Append(JQuery.Of(minion.Dom)).Ignore
+            )
 
     let clearGame () =
         currentGame.Clear()
@@ -303,7 +362,7 @@ module Client =
                 .RemoveClass("btn-warning")
                 .Attr("disabled", "true")
                 .Ignore
-            JQuery.Of("#" + playerStr + "UseHeroPowerButton").FadeOut().Ignore
+            JQuery.Of("#" + playerStr + "UseHeroPowerBtn").FadeOut().Ignore
             JQuery.Of("#" + playerStr + "ProggressbarUnused").Css("width", "0%").Ignore
             JQuery.Of("#" + playerStr + "ProggressbarUsed").Css("width", "0%").Ignore
             )
@@ -327,17 +386,17 @@ module Client =
                                     | Success guid -> currentGame.ActivePlayerGuid <- guid
                                     | Error msg -> notifyError(msg)
                         )
-                [ if currentGame.HasLeftPlayer() then yield currentGame.LeftPlayer.Guid
-                  if currentGame.HasRightPlayer() then yield currentGame.RightPlayer.Guid ]
-                |> List.iter(fun playerGuid ->
-                    doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
-                        (fun res -> 
-                            match res with
-                            | Success player -> updatePlayer player
-                            | Error msg -> notifyError(msg))
-                    )
-                currentGame.LastChanged <- time
-                JQuery.Of(gameGuidLabel.Dom).Text(currentGame.Guid + " " + (string currentGame.LastChanged)).Ignore             
+                    [ if currentGame.HasLeftPlayer() then yield currentGame.LeftPlayer.Guid
+                      if currentGame.HasRightPlayer() then yield currentGame.RightPlayer.Guid ]
+                    |> List.iter(fun playerGuid ->
+                        doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
+                            (fun res -> 
+                                match res with
+                                | Success player -> updatePlayer player
+                                | Error msg -> notifyError(msg))
+                        )
+                    currentGame.LastChanged <- time
+                    JQuery.Of(gameGuidLabel.Dom).Text(currentGame.Guid + " " + (string currentGame.LastChanged)).Ignore             
 
     let playCard (cardId : string) (player : Player) =
         ()
@@ -399,6 +458,11 @@ module Client =
             )
             1000
 
+    let testButton =
+        let item = Button []
+        
+        item
+
     let setupButton =
 
         JQuery.Of(startGameButton.Dom)
@@ -444,7 +508,8 @@ module Client =
                                             match ret with
                                             | Success player -> updatePlayer player
                                             | Error msg -> notifyError(msg))
-                                | Error msg -> notifyError(msg))
+                                | Error msg -> notifyError(msg)
+                            )
                     )
                 | None -> notifyError("Cannot register player")).Ignore
 
@@ -488,7 +553,7 @@ module Client =
     let Main () =
 
         Div [Attr.Class "col-md-12"] -< [
-
+            testButton
             Div [Attr.Class "panel panel-primary"] -< [
                 Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Game Control"]
                 Div [Attr.Class "panel-body"] -< [
