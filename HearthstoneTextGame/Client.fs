@@ -382,21 +382,23 @@ module Client =
             | Success time ->
                 if time > currentGame.LastChanged then
                     doAsync (Remoting.GetActivePlayerGuid(currentGame.Guid))
-                        (fun ret -> match ret with
-                                    | Success guid -> currentGame.ActivePlayerGuid <- guid
-                                    | Error msg -> notifyError(msg)
+                        (fun ret -> 
+                            match ret with
+                            | Success guid -> 
+                                currentGame.ActivePlayerGuid <- guid
+                                currentGame.LastChanged <- time
+                                JQuery.Of(gameGuidLabel.Dom).Text(currentGame.Guid + " " + (string currentGame.LastChanged)).Ignore             
+                                [ if currentGame.HasLeftPlayer() then yield currentGame.LeftPlayer.Guid
+                                  if currentGame.HasRightPlayer() then yield currentGame.RightPlayer.Guid ]
+                                |> List.iter(fun playerGuid ->
+                                    doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
+                                        (fun res -> 
+                                            match res with
+                                            | Success player -> updatePlayer player
+                                            | Error msg -> notifyError(msg))
+                                    )
+                            | Error msg -> notifyError(msg)
                         )
-                    [ if currentGame.HasLeftPlayer() then yield currentGame.LeftPlayer.Guid
-                      if currentGame.HasRightPlayer() then yield currentGame.RightPlayer.Guid ]
-                    |> List.iter(fun playerGuid ->
-                        doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
-                            (fun res -> 
-                                match res with
-                                | Success player -> updatePlayer player
-                                | Error msg -> notifyError(msg))
-                        )
-                    currentGame.LastChanged <- time
-                    JQuery.Of(gameGuidLabel.Dom).Text(currentGame.Guid + " " + (string currentGame.LastChanged)).Ignore             
 
     let playCard (cardId : string) (player : Player) =
         ()
@@ -457,11 +459,6 @@ module Client =
                 updatePlayers()
             )
             1000
-
-    let testButton =
-        let item = Button []
-        
-        item
 
     let setupButton =
 
@@ -553,7 +550,6 @@ module Client =
     let Main () =
 
         Div [Attr.Class "col-md-12"] -< [
-            testButton
             Div [Attr.Class "panel panel-primary"] -< [
                 Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Game Control"]
                 Div [Attr.Class "panel-body"] -< [
