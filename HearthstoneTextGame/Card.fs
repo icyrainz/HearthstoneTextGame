@@ -4,6 +4,13 @@ open System
 
 module Card =
 
+    let basicTotems =
+        [ "Healing Totem"
+          "Searing Totem"
+          "Stoneclaw Totem"
+          "Wrath of Air Totem"
+        ] 
+
     let parseEntityJsonToCard (entity : EntityJson.T) =
         { Id = entity.Id
           Name = entity.Name
@@ -26,17 +33,9 @@ module Card =
         |> Seq.map(fun e -> parseEntityJsonToCard(e))
         |> Seq.toList
 
-
     let getRandomPlayableCard (hero : string) =
         let eligibleCards = playableCards |> List.filter(fun e -> e.CardClass.IsNone)
-        List.nth eligibleCards <| Random().Next(eligibleCards |> List.length)
-
-    let getRandomTotem () =
-        let totems = 
-            EntityJson.All 
-            |> Seq.filter(fun e -> e.Race = Some "Totem")
-            |> Seq.map(fun e -> parseEntityJsonToCard(e)) 
-        totems |> Seq.nth (Random().Next(totems |> Seq.length))
+        List.nth eligibleCards <| Random().Next(eligibleCards.Length)
 
     let getCardByExactName (name : string) =
         EntityJson.All

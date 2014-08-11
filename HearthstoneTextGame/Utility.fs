@@ -19,8 +19,8 @@ module Utility =
         | i, x :: xs -> x :: remove (i - 1) xs
         | i, [] -> failwith "index out of range"
     
-    let removeRandomElem lst = 
-        let rng = Random().Next(lst |> List.length)
+    let removeRandomElem (lst : 'a list) = 
+        let rng = Random().Next(lst.Length)
         let item = List.nth lst rng
         let newLst = remove rng lst
         item, newLst

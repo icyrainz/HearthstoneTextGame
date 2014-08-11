@@ -71,7 +71,7 @@ module Game =
         { game with Players = newPlayers }
 
     let playMinion (minion : Minion) (pos : int) (player : Player) (game : GameSession) =
-        if pos > (player.MinionPosition |> List.length) || pos < 0 then
+        if pos > player.MinionPosition.Length || pos < 0 then
             None
         else 
             let newMinionPosition = Utility.insert minion pos player.MinionPosition
@@ -112,9 +112,14 @@ module Game =
                 let aPlayer = newPlayer |> updatePlayer [newHeroChar]
                 Some <| updatePlayerToGame aPlayer newGame
             | "CS2_049" (* Totemic Call *) ->
-                let totem = Minion.Parse(Card.getRandomTotem())
-                if totem.IsNone then None
-                else playMinion totem.Value (newPlayer.MinionPosition |> List.length) newPlayer newGame          
+                let newTotems =
+                    Card.basicTotems
+                    |> List.filter(fun e -> 
+                        newPlayer.MinionPosition 
+                        |> List.exists(fun m -> m.Card.Name = e) |> not)
+                    |> List.map(fun e -> Minion.Parse(Card.getCardByExactName e).Value)
+                if newTotems.Length = 0 then None
+                else playMinion (fst <| Utility.removeRandomElem newTotems) newPlayer.MinionPosition.Length newPlayer newGame          
             | "DS1h_292" (* Steady Shot *) ->
                 let opponent = getOpponent newPlayer.Guid newGame
                 if opponent.IsNone then None
@@ -126,7 +131,7 @@ module Game =
                 let card = Card.getCardByExactName("Silver Hand Recruit")
                 let token = Minion.Parse(card)
                 if token.IsNone then None
-                else playMinion token.Value (newPlayer.MinionPosition |> List.length) newPlayer newGame
+                else playMinion token.Value newPlayer.MinionPosition.Length newPlayer newGame
             | "CS2_083b" (* Dagger Mastery *) ->
                 let knife = Weapon.Parse(Card.getCardByExactName("Wicked Knife"))
                 if knife.IsNone then None
@@ -161,7 +166,7 @@ module Game =
                     )
             )
 
-        if found |> List.length = 1 then Some found.Head
+        if found.Length = 1 then Some found.Head
         else None
 
     let findTargetForHeroPower (player : Player) (game : GameSession) =

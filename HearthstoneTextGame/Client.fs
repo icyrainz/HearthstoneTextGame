@@ -329,7 +329,7 @@ module Client =
             JQuery.Of("#" + playerStr + "Name").Text(player.Name).Ignore
             JQuery.Of("#" + playerStr + "Class").Text(player.HeroClass).Ignore
             JQuery.Of("#" + playerStr + "HeroPower").Text(player.HeroPower.Name).Ignore
-            JQuery.Of("#" + playerStr + "RemainingCardsCount").Text(string <| List.length player.Deck.CardIdList).Ignore
+            JQuery.Of("#" + playerStr + "RemainingCardsCount").Text(string player.Deck.CardIdList.Length).Ignore
             JQuery.Of("#" + playerStr + "Health").Text(player.HeroCharacter.Hp.ToString()).Ignore
             JQuery.Of("#" + playerStr + "UseHeroPowerBtn").FadeIn().Ignore
             match (not player.HeroPowerUsed) && isActive && (player.HeroPower.Cost <= player.CurrentMana) with

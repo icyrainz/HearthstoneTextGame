@@ -109,7 +109,7 @@ module Entity =
           DeckClass : string
           CardIdList : string list }
 
-        member __.RemainingCardsCount = __.CardIdList |> List.length
+        member __.RemainingCardsCount = __.CardIdList.Length
 
         override __.ToString() = __.CardIdList |> List.fold (fun acc card -> acc + card + "\n") ""
 
@@ -292,7 +292,7 @@ module Entity =
           ActivePlayerGuid : string
           CurrentPhase : GamePhase }
 
-        member __.PlayerCount = __.Players |> List.length
+        member __.PlayerCount = __.Players.Length
 
         override __.ToString() = __.Guid
 
