@@ -31,8 +31,9 @@ module Utility =
         | value -> value
         
     let predefinedDecksFileName = 
-        [ "reynad_zoo.Warlock.deck"]
-        |> List.map (fun deck -> getContentPath deck)
+        System.IO.Directory.GetFiles(getContentPath "", "*deck") |> Array.toList
+//        [ "reynad_zoo.Warlock.deck"]
+//        |> List.map (fun deck -> getContentPath deck)
 
     let rngNext (max : int) = Random().Next(max)
 

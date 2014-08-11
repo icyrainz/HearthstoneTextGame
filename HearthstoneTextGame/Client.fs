@@ -113,6 +113,18 @@ module Client =
                     TD [Text "Health"]
                     TD [Id "leftHealth"; Text "[None]"; Rel "clear"]
                 ]
+                TR [] -< [
+                    TD [Text "Armour"]
+                    TD [Id "leftArmour"; Text "[None]"; Rel "clear"]
+                ]
+                TR [] -< [
+                    TD [Text "Attack Value"]
+                    TD [Id "leftAtkVal"; Text "[None]"; Rel "clear"]
+                ]
+                TR [] -< [
+                    TD [Text "Weapon"]
+                    TD [Id "leftWeapon"; Text "[None]"; Rel "clear"]
+                ]
             ]
         ]
 
@@ -159,6 +171,18 @@ module Client =
                 TR [] -< [
                     TD [Text "Health"]
                     TD [Id "rightHealth"; Text "[None]"; Rel "clear"]
+                ]
+                TR [] -< [
+                    TD [Text "Armour"]
+                    TD [Id "rightArmour"; Text "[None]"; Rel "clear"]
+                ]
+                TR [] -< [
+                    TD [Text "Attack Value"]
+                    TD [Id "rightAtkVal"; Text "[None]"; Rel "clear"]
+                ]
+                TR [] -< [
+                    TD [Text "Weapon"]
+                    TD [Id "rightWeapon"; Text "[None]"; Rel "clear"]
                 ]
             ]
         ]
@@ -209,12 +233,13 @@ module Client =
             let newItem = LI [Attr.Class "list-group-item"; Text itemName]
             askItems.Append(newItem)
             newItem |>! OnClick (fun evt m ->
-                JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore
-                JQuery.Of(saveItemButton.Dom).Unbind("click").Ignore
-
+                JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore             
                 JQuery.Of(evt.Dom).AddClass("active").Ignore
-                JQuery.Of(saveItemButton.Dom).Click(fun _ _ -> hideModal(); callback itemGuid).Ignore
+                JQuery.Of(saveItemButton.Dom)
+                    .Unbind("click")
+                    .Click(fun _ _ -> hideModal(); callback itemGuid).Ignore
             ) |> ignore)
+        JQuery.Of(saveItemButton.Dom).Unbind("click").Click(fun _ _ -> hideModal()).Ignore
         showModal()
 
     let addItemsToAskForPosition (items : string list) (callback : int -> unit) =
@@ -223,10 +248,11 @@ module Client =
             let pos = LI [Attr.Class "list-group-item"; Text "->"]
             pos |>! OnClick (fun evt m ->
                 JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore
-                JQuery.Of(saveItemButton.Dom).Unbind("click").Ignore
-
                 JQuery.Of(evt.Dom).AddClass("active").Ignore
-                JQuery.Of(saveItemButton.Dom).Click(fun _ _ -> hideModal(); callback idx).Ignore
+                JQuery.Of(saveItemButton.Dom)
+                    .Unbind("click")
+                    .Click(fun _ _ -> hideModal(); callback idx)
+                    .Ignore
             ) |> ignore
             askItems.Append(pos)
             let newItem = LI [Attr.Class "list-group-item"; Text item]
@@ -236,12 +262,14 @@ module Client =
         let pos = LI [Attr.Class "list-group-item"; Text "->"]
         pos |>! OnClick (fun evt m ->
             JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore
-            JQuery.Of(saveItemButton.Dom).Unbind("click").Ignore
-
             JQuery.Of(evt.Dom).AddClass("active").Ignore
-            JQuery.Of(saveItemButton.Dom).Click(fun _ _ -> hideModal(); callback items.Length).Ignore
+            JQuery.Of(saveItemButton.Dom)
+                .Unbind("click")
+                .Click(fun _ _ -> hideModal(); callback items.Length)
+                .Ignore
         ) |> ignore
         askItems.Append(pos)
+        JQuery.Of(saveItemButton.Dom).Unbind("click").Click(fun _ _ -> hideModal()).Ignore
         showModal()
 
     let cardTemplateDiv (playable : bool) (card : CardOnHand) (owner : Player) =
@@ -261,68 +289,70 @@ module Client =
                     .Attr("type", "button")
                     .Text("Play")
                     .Click(fun _ _ ->
-                        doAsync (Remoting.DoesCardNeedTarget card.Card.Name)
-                            (fun needTarget ->
-                                match needTarget with
-                                | false ->
-                                    match card.Card.Type with
-                                    | "Minion" ->
-                                        addItemsToAskForPosition (owner.MinionPosition |> List.map(fun e -> e.Card.Name))
-                                            (fun idx ->
-                                                doAsync (Remoting.PlayCard card (Some idx) None owner.Guid currentGame.Guid)
-                                                    (fun ret ->
-                                                        match ret with
-                                                        | Success msg -> notifySuccess(msg)
-                                                        | Error msg -> notifyError(msg)
-                                                    )
-                                            )
-                                    | _ ->
-                                        doAsync (Remoting.PlayCard card None None owner.Guid currentGame.Guid)
+                        if not playable then notifyError("Cannot play card")
+                        else
+                            doAsync (Remoting.DoesCardNeedTarget card.Card.Name)
+                                (fun needTarget ->
+                                    match needTarget with
+                                    | false ->
+                                        match card.Card.Type with
+                                        | "Minion" ->
+                                            addItemsToAskForPosition (owner.MinionPosition |> List.map(fun e -> e.Card.Name))
+                                                (fun idx ->
+                                                    doAsync (Remoting.PlayCard card (Some idx) None owner.Guid currentGame.Guid)
+                                                        (fun ret ->
+                                                            match ret with
+                                                            | Success msg -> notifySuccess(msg)
+                                                            | Error msg -> notifyError(msg)
+                                                        )
+                                                )
+                                        | _ ->
+                                            doAsync (Remoting.PlayCard card None None owner.Guid currentGame.Guid)
+                                                (fun ret ->
+                                                    match ret with
+                                                    | Success msg -> notifySuccess(msg)
+                                                    | Error msg -> notifyError(msg)
+                                                )        
+                                    | true ->
+                                        doAsync (Remoting.FindTargetForCard card.Card owner.Guid currentGame.Guid)
                                             (fun ret ->
                                                 match ret with
-                                                | Success msg -> notifySuccess(msg)
                                                 | Error msg -> notifyError(msg)
-                                            )        
-                                | true ->
-                                    doAsync (Remoting.FindTargetForCard card.Card owner.Guid currentGame.Guid)
-                                        (fun ret ->
-                                            match ret with
-                                            | Error msg -> notifyError(msg)
-                                            | Success items ->
-                                                let itemName= 
-                                                    items |> List.map (fun e ->
-                                                        match Remoting.GetICharName e currentGame.Guid with
-                                                        | Success name -> name
-                                                        | Error msg -> "Fail to load name !"
-                                                    )
-                                                let itemNameWithGuid = List.zip items itemName
-                                                match card.Card.Type with
-                                                | "Minion" ->
-                                                    addItemsToAskForPosition (owner.MinionPosition |> List.map(fun e -> e.Card.Name))
-                                                        (fun idx ->
-                                                            addItemsToAsk itemNameWithGuid
-                                                                (fun sel ->
-                                                                    doAsync (Remoting.PlayCard card (Some idx) (Some sel) owner.Guid currentGame.Guid)
-                                                                        (fun res ->
-                                                                            match res with
-                                                                            | Success msg -> notifySuccess(msg)
-                                                                            | Error msg -> notifyError(msg)
-                                                                        )
-                                                                )
+                                                | Success items ->
+                                                    let itemName= 
+                                                        items |> List.map (fun e ->
+                                                            match Remoting.GetICharName e currentGame.Guid with
+                                                            | Success name -> name
+                                                            | Error msg -> "Fail to load name !"
+                                                        )
+                                                    let itemNameWithGuid = List.zip items itemName
+                                                    match card.Card.Type with
+                                                    | "Minion" ->
+                                                        addItemsToAskForPosition (owner.MinionPosition |> List.map(fun e -> e.Card.Name))
+                                                            (fun idx ->
+                                                                addItemsToAsk itemNameWithGuid
+                                                                    (fun sel ->
+                                                                        doAsync (Remoting.PlayCard card (Some idx) (Some sel) owner.Guid currentGame.Guid)
+                                                                            (fun res ->
+                                                                                match res with
+                                                                                | Success msg -> notifySuccess(msg)
+                                                                                | Error msg -> notifyError(msg)
+                                                                            )
+                                                                    )
                                                             
-                                                        )
-                                                | _ ->
-                                                    addItemsToAsk itemNameWithGuid
-                                                        (fun sel ->
-                                                            doAsync (Remoting.PlayCard card None (Some sel) owner.Guid currentGame.Guid)
-                                                                (fun res ->
-                                                                    match res with
-                                                                    | Success msg -> notifySuccess(msg)
-                                                                    | Error msg -> notifyError(msg)
-                                                                )
-                                                        )
-                                        )
-                            )
+                                                            )
+                                                    | _ ->
+                                                        addItemsToAsk itemNameWithGuid
+                                                            (fun sel ->
+                                                                doAsync (Remoting.PlayCard card None (Some sel) owner.Guid currentGame.Guid)
+                                                                    (fun res ->
+                                                                        match res with
+                                                                        | Success msg -> notifySuccess(msg)
+                                                                        | Error msg -> notifyError(msg)
+                                                                    )
+                                                            )
+                                            )
+                                )
                     )
             if playable then item.AddClass("btn btn-success")
             else item.AddClass("btn btn-default")
@@ -346,9 +376,20 @@ module Client =
                 | Some "Common" -> nameLabel.Css("color", "black")
                 | _ -> nameLabel.Css("color", "gray")
 
-            let atk = JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Attack.IsSome then card.Card.Attack.Value.ToString() else "")
-            let hp = JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Health.IsSome then card.Card.Health.Value.ToString() else "")
-            JQuery.Of("<h5/>").AddClass("row").Append(cost).Append(name).Append(atk).Append(hp)
+            
+            let atk =
+                if card.Card.Type = "Minion" || card.Card.Type = "Weapon" then
+                    JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Attack.IsSome then card.Card.Attack.Value.ToString() else "")
+                else
+                    JQuery.Of("<div />")
+            let hpOrDu =
+                if card.Card.Type = "Minion" then
+                    JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Health.IsSome then card.Card.Health.Value.ToString() else "")
+                else if card.Card.Type = "Weapon" then
+                    JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Durability.IsSome then card.Card.Durability.Value.ToString() else "")
+                else
+                    JQuery.Of("<div />")
+            JQuery.Of("<h5/>").AddClass("row").Append(cost).Append(name).Append(atk).Append(hpOrDu)
 
         let newItem = LI []
         JQuery.Of(newItem.Dom)
@@ -457,6 +498,25 @@ module Client =
             JQuery.Of("#" + playerStr + "HeroPower").Text(player.HeroPower.Name).Ignore
             JQuery.Of("#" + playerStr + "RemainingCardsCount").Text(string player.Deck.CardIdList.Length).Ignore
             JQuery.Of("#" + playerStr + "Health").Text(player.HeroCharacter.Hp.ToString()).Ignore
+            if player.ActiveWeapon.IsSome then
+                JQuery.Of("#" + playerStr + "Weapon").Text("").Ignore
+                JQuery.Of("<div />").AddClass("row")
+                    .Append(JQuery.Of("<div />").AddClass("col-xs-9").Text(player.ActiveWeapon.Value.Card.Name))
+                    .Append(JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(player.ActiveWeapon.Value.Attack.ToString()))
+                    .Append(JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(player.ActiveWeapon.Value.Durability.ToString()))
+                    .AppendTo(JQuery.Of("#" + playerStr + "Weapon")).Ignore
+                JQuery.Of("#" + playerStr + "Weapon").Parent().FadeIn().Ignore
+            else
+                JQuery.Of("#" + playerStr + "Weapon").Parent().FadeOut().Ignore
+
+            if player.HeroCharacter.Armour = 0 then
+                JQuery.Of("#" + playerStr + "Armour").Parent().FadeOut().Ignore
+            else
+                JQuery.Of("#" + playerStr + "Armour").Text(player.HeroCharacter.Armour.ToString()).Parent().FadeIn().Ignore
+            if player.HeroCharacter.AttackValue = 0 then
+                JQuery.Of("#" + playerStr + "AtkVal").Parent().FadeOut().Ignore
+            else
+                JQuery.Of("#" + playerStr + "AtkVal").Text(player.HeroCharacter.AttackValue.ToString()).Parent().FadeIn().Ignore
             JQuery.Of("#" + playerStr + "UseHeroPowerBtn").FadeIn().Ignore
             match (not player.HeroPowerUsed) && isActive && (player.HeroPower.Cost <= player.CurrentMana) with
             | true -> JQuery.Of("#" + playerStr + "UseHeroPowerBtn").AddClass("btn-success").RemoveAttr("disabled").Ignore
@@ -525,9 +585,6 @@ module Client =
                                     )
                             | Error msg -> notifyError(msg)
                         )
-
-    let playCard (cardId : string) (player : Player) =
-        ()
 
     let useHeroPower (player : Player) =
         doAsync (Remoting.DoesHeroPowerNeedTarget (player.HeroPower.Name))

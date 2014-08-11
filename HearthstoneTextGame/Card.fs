@@ -54,8 +54,3 @@ module Card =
            |> parseEntityJsonToCard)
            with Cost = Some 0
         }
-
-    let getTargetForCard (cardName : string) =
-        match cardName with
-        | "Perdition's Blade" -> Some <| AnyTarget(Any)
-        | _ -> None

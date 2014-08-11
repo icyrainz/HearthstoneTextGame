@@ -170,8 +170,8 @@ module Entity =
             member __.Health = __.Hp
             member __.SetHealth (value) = { __ with Hp = value} :> ICharacter
             member __.GetDamage (value) =
-                let mutable armour = 0
-                let mutable hp = 0
+                let mutable armour = __.Armour
+                let mutable hp = __.Hp
                 if not __.HasImmunity then
                     if value <= __.Armour then
                         armour <- __.Armour - value

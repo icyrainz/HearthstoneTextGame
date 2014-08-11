@@ -250,7 +250,7 @@ module Remoting =
     [<Remote>]
     let DoesCardNeedTarget (cardName : string) =
         async {
-            match Card.getTargetForCard cardName with
+            match getTargetForCard cardName with
             | Some target -> return true
             | None -> return false
         }

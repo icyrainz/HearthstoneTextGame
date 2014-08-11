@@ -32,9 +32,9 @@ module Deck =
 
         !rngDeck
 
-    let parseDeckInCockatrice (text : string) =
+    let parseCardListInCockatrice (text : string) =
         try
-            let pattern = @"(\d{1}) (.+)"
+            let pattern = @"(\d{1,2}) (.+)"
             let lines = text.Split([|"\n"|], System.StringSplitOptions.None)
             [ for line in lines do
                 let captureGroup = Regex.Match(line.Trim(), pattern).Groups
@@ -46,14 +46,22 @@ module Deck =
             _ -> failwith "Cannot parse deck"
 
     let PredefinedDecks = 
-        Utility.predefinedDecksFileName |> List.map(fun deckFileName ->
-            let deckInfo = Regex.Match(deckFileName, @".*\\(.*)\.(.*)\..*")
-            let deckName = deckInfo.Groups.Item(1).Value
-            let deckClass = deckInfo.Groups.Item(2).Value
-            let deckCardList = parseDeckInCockatrice <| File.ReadAllText(deckFileName)
-            { Name = deckName
-              DeckClass = deckClass
-              CardIdList = deckCardList
-            }
-                
-        )
+        let a =
+            Utility.predefinedDecksFileName |> List.map(fun deckFileName ->
+                let deckInfo = Regex.Match(deckFileName, @".*\\(.*)\.(.*)\..*")
+                let deckName = deckInfo.Groups.Item(1).Value
+                let deckClass = deckInfo.Groups.Item(2).Value
+                let deckCardList = parseCardListInCockatrice <| File.ReadAllText(deckFileName)
+                { Name = deckName
+                  DeckClass = deckClass
+                  CardIdList = deckCardList
+                } 
+            )
+        a
+
+    let parseDeckInCockatrice (deckName : string) (deckClass : string) (text : string) =
+        let deckCardList = parseCardListInCockatrice (text)
+        { Name = deckName
+          DeckClass = deckClass
+          CardIdList = deckCardList
+        }

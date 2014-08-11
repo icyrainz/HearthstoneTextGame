@@ -98,7 +98,11 @@ module Game =
         }
 
     let playWeapon (weapon : Weapon) (player : Player) (game : GameSession) =
-        let newAttackValue = player.HeroCharacter.AttackValue + weapon.Attack
+        let newAttackValue = 
+            if player.ActiveWeapon.IsSome then
+                player.HeroCharacter.AttackValue - player.ActiveWeapon.Value.Attack + weapon.Attack
+            else
+                player.HeroCharacter.AttackValue + weapon.Attack
         let newPlayer = { player with ActiveWeapon = Some { weapon with CanAttack = true }
                                       HeroCharacter = { player.HeroCharacter with AttackValue = newAttackValue } }
         Some <| updatePlayerToGame newPlayer game
@@ -235,8 +239,13 @@ module Game =
             )
         )
 
+    let getTargetForCard (cardName : string) =
+        match cardName with
+        | "Perdition's Blade" -> Some (AnyTarget(Any), (fun ((target : ICharacter), game) -> updateICharToGame [target.GetDamage(1)] game))
+        | _ -> None
+
     let findTargetForCard (card : Card) (player : Player) (game : GameSession) =
-        Card.getTargetForCard card.Name |> Option.bind(fun target ->
+        getTargetForCard card.Name |> Option.bind(fun (target, action) ->
             findTarget target player game
         )
 
@@ -249,7 +258,18 @@ module Game =
                 let mutable newPlayer = { player with CurrentMana = player.CurrentMana - card.Cost
                                                       Hand = player.Hand |> List.filter(fun c -> c <> card)
                                         }
-                (playWeapon (Weapon.Parse(card.Card).Value) newPlayer game)
+                let mutable newGame =
+                    if target.IsSome then
+                        getTargetForCard card.Card.Name 
+                        |> Option.map(fun (_, action) ->
+                            action (target.Value, game)
+                        )
+                    else
+                        None
+                if newGame.IsSome then
+                    (playWeapon (Weapon.Parse(card.Card).Value) newPlayer newGame.Value)
+                else
+                    (playWeapon (Weapon.Parse(card.Card).Value) newPlayer game)
             | "Minion" ->
                 if pos.IsNone || player.MinionPosition.Length = Config.maxMinionsOnBoard then None
                 else
@@ -265,9 +285,11 @@ module Game =
             let startPlayer = Utility.rngNext(Config.maxNumberOfPlayers) |> List.nth game.Players
             let secondPlayer = (getOpponent startPlayer.Guid game).Value
             let newSecondPlayer = { secondPlayer with Hand = CardOnHand.Parse(Card.TheCoin) :: secondPlayer.Hand}
-            let newGame = updatePlayerToGame newSecondPlayer game
-            let _, newGameWithDrawCard = drawCard startPlayer newGame
-            Some { newGameWithDrawCard with ActivePlayerGuid = startPlayer.Guid; CurrentPhase = Playing }
+            let newStartPlayer = { startPlayer with CurrentMana = 1; MaxMana = 1 }
+            let mutable newGame = updatePlayerToGame newStartPlayer game
+            newGame <- updatePlayerToGame newSecondPlayer newGame
+            let _, newGameWithDrawCard = drawCard newStartPlayer newGame
+            Some { newGameWithDrawCard with ActivePlayerGuid = newStartPlayer.Guid; CurrentPhase = Playing }
 
             
 
@@ -283,7 +305,19 @@ module Game =
             let mutable tempPlayer = (getPlayer game.ActivePlayerGuid game).Value
             tempPlayer <- { tempPlayer with HeroPowerUsed = false }
             newGame <- updatePlayerToGame tempPlayer newGame
-         
+            
+            // Reset hero character atk value to weapon atk
+            tempPlayer <- { tempPlayer with 
+                                HeroCharacter = { tempPlayer.HeroCharacter with 
+                                                    AttackValue =
+                                                        if tempPlayer.ActiveWeapon.IsSome then
+                                                            tempPlayer.ActiveWeapon.Value.Attack
+                                                        else
+                                                            0 
+                                                }
+                          }
+            newGame <- updatePlayerToGame tempPlayer newGame
+
             // Set activePlayer to opponent and go to next phase
             let opp = (getOpponent newGame.ActivePlayerGuid newGame).Value
             newGame <- { newGame with ActivePlayerGuid = opp.Guid }
