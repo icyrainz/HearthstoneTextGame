@@ -1,6 +1,5 @@
 namespace HearthstoneTextGame
 
-open System
 open System.Collections.Generic
 open IntelliFactory.WebSharper
 
@@ -12,10 +11,10 @@ type Response<'T> =
 
 module Remoting =
 
-    let gameDb = new Dictionary<string, DateTime * GameSession>()
+    let gameDb = new Dictionary<Guid, System.DateTime * GameSession>()
 
     let updateGame (game : GameSession) =
-        let now = DateTime.Now
+        let now = System.DateTime.Now
         match gameDb.ContainsKey(game.Guid) with
         | true ->
             let time, gameInDb = gameDb.Item(game.Guid)
@@ -67,7 +66,7 @@ module Remoting =
         }
 
     [<Remote>]
-    let RegisterPlayer (playerName : string) (gameGuid : string) =
+    let RegisterPlayer (playerName : string) (gameGuid : Guid) =
         respondAsync
             gameGuid
             (registerRandomDeckPlayer playerName)
@@ -78,7 +77,7 @@ module Remoting =
             (Error ("Cannot register player"))
 
     [<Remote>]
-    let RegisterPlayerWithClass (playerName : string) (playerClass : string) (gameGuid : string) =
+    let RegisterPlayerWithClass (playerName : string) (playerClass : string) (gameGuid : Guid) =
         respondAsync
             gameGuid
             (registerRandomDeckPlayerWithClass playerName playerClass)
@@ -89,10 +88,27 @@ module Remoting =
             (Error ("Cannot register player"))
 
     [<Remote>]
+    let RegisterPlayerWithDeck (playerName : string) (deck : Deck) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (registerPlayer playerName deck)
+            (fun (player, newGame) ->
+                updateGame newGame
+                Success (player.Guid)
+            )
+            (Error ("Cannot register player"))
+
+    [<Remote>]
     let GetPlayableClass () = Hero.playableClasses
 
     [<Remote>]
-    let GetPlayer (playerGuid : string) (gameGuid : string) =
+    let GetPredefinedDeck () = 
+        async {
+            return Deck.PredefinedDecks
+        }
+
+    [<Remote>]
+    let GetPlayer (playerGuid : Guid) (gameGuid : Guid) =
         respondAsync
             gameGuid
             (getPlayer playerGuid)
@@ -100,7 +116,7 @@ module Remoting =
             (Error ("Cannot get player"))
 
     [<Remote>]
-    let DrawCard (playerGuid : string) (gameGuid : string) =
+    let DrawCard (playerGuid : Guid) (gameGuid : Guid) =
         respondAsync
             gameGuid
             (fun game ->
@@ -126,7 +142,7 @@ module Remoting =
         }
 
     [<Remote>]
-    let UseHeroPower (playerGuid : string) (targetGuid : string option) (gameGuid : string) =
+    let UseHeroPower (playerGuid : Guid) (targetGuid : Guid option) (gameGuid : Guid) =
         respondAsync
             gameGuid
             (fun game ->
@@ -147,7 +163,7 @@ module Remoting =
             (Error("Cannot use hero power"))
 
     [<Remote>]
-    let FindTargetForHeroPower (playerGuid : string) (gameGuid : string) =
+    let FindTargetForHeroPower (playerGuid : Guid) (gameGuid : Guid) =
         respondAsync
             gameGuid
             (fun game ->
@@ -158,7 +174,7 @@ module Remoting =
             (Error("Cannot find target"))
 
     [<Remote>]
-    let GetICharName (guid : string) (gameGuid : string) =
+    let GetICharName (guid : Guid) (gameGuid : Guid) =
         respondAsync
             gameGuid
             (fun game ->
@@ -189,7 +205,7 @@ module Remoting =
         |> Async.RunSynchronously
 
     [<Remote>]
-    let GetActivePlayerGuid (gameGuid : string) =
+    let GetActivePlayerGuid (gameGuid : Guid) =
         respondAsync
             gameGuid
             (fun game ->
@@ -199,7 +215,7 @@ module Remoting =
             (Error("Cannot get active player"))
         
     [<Remote>]
-    let StartGame (gameGuid : string) =
+    let StartGame (gameGuid : Guid) =
         respondAsync
             gameGuid
             (fun game -> startGame game)
@@ -210,7 +226,7 @@ module Remoting =
             (Error("Cannot start game"))
 
     [<Remote>]
-    let GetGameLastChangedTime (gameGuid : string) =
+    let GetGameLastChangedTime (gameGuid : Guid) =
         async {
             match getGameTime (gameGuid) with
             | Some time -> return Success(time.Ticks)
@@ -219,7 +235,7 @@ module Remoting =
         |> Async.RunSynchronously
 
     [<Remote>]
-    let EndTurn (playerGuid : string) (gameGuid : string) =
+    let EndTurn (playerGuid : Guid) (gameGuid : Guid) =
         respondAsync
             gameGuid
             (fun game -> 
@@ -230,3 +246,46 @@ module Remoting =
                 Success("Turn ended")
             )
             (Error ("Current player is not active or current phase is not Playing"))
+
+    [<Remote>]
+    let DoesCardNeedTarget (cardName : string) =
+        async {
+            match Card.getTargetForCard cardName with
+            | Some target -> return true
+            | None -> return false
+        }
+
+    [<Remote>]
+    let FindTargetForCard (card : Card) (playerGuid : Guid) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                getPlayer playerGuid game
+                |> Option.bind(fun player -> findTargetForCard card player game)
+            )
+            (fun targetList -> Success(targetList))
+            (Error("Cannot find target"))
+
+    [<Remote>]
+    let PlayCard (card : CardOnHand) (pos : int option) (targetGuid : Guid option) (playerGuid : Guid) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                getPlayer playerGuid game
+                |> Option.bind(fun player -> 
+                    if targetGuid.IsSome then
+                        findIChar targetGuid.Value game (fun _ -> ()) (fun _ -> ())
+                        |> Option.bind(fun target ->
+                            getPlayer playerGuid game
+                            |> Option.bind(fun player -> playCard card pos (Some target) player game)
+                            )
+                    else
+                        getPlayer playerGuid game
+                            |> Option.bind(fun player -> playCard card pos None player game)
+                )
+            )
+            (fun newGame -> 
+                updateGame newGame
+                Success("Played: " + card.Card.Name)
+            )
+            (Error("Cannot play card"))

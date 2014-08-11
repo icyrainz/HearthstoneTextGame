@@ -15,6 +15,11 @@ module Entity =
         | AnyTarget of TargetHostile
         | MinionTarget of TargetHostile
 
+    type Guid = 
+        { value : string }
+
+        override __.ToString() = __.value
+
     type HeroPower =
         { Id : string
           Name : string
@@ -52,23 +57,36 @@ module Entity =
               Cost = 0
               Text = "" }
 
-    type HeroClass =
-        | Mage
-        | Hunter
-        | Priest
-        | Warlock
-        | Paladin
-        | Warrior
-        | Rogue
-        | Shaman
-        | Druid
-        | Other
-
     type Hero =
         { Name : string
           HeroClass : string }
 
         override __.ToString() = __.Name + " " + __.HeroClass
+
+    type CardMechanic =
+        | Battlecry
+        | Taunt
+        | ImmuneToSpellPower
+        | Spellpower
+        | OneTurnEffect
+        | Charge
+        | GrantCharge
+        | AdjacentBuff
+        | Aura
+        | Freeze
+        | Morph
+        | HealTarget
+        | Deathrattle
+        | Combo
+        | DivineShield
+        | Windfury
+        | Enrage
+        | AffectedBySpellPower
+        | Stealth
+        | Secret
+        | Silence
+        | Poisonous
+        | Summoned
 
     type Card =
         { Id : string
@@ -101,8 +119,15 @@ module Entity =
               Mechanics = [] }
 
     type CardOnHand =
-        { Cost : int
+        { Guid : Guid
+          Cost : int
           Card : Card }
+        static member Parse (card : Card) =
+            { Guid = { value = System.Guid.NewGuid().ToString() }
+              Cost = card.Cost.Value
+              Card = card
+            }
+
 
     type Deck =
         { Name : string
@@ -119,7 +144,7 @@ module Entity =
               CardIdList = [] }
 
     type ICharacter =
-        abstract member Guid : string
+        abstract member Guid : Guid
         abstract member Attack : int
         abstract member SetAttack : int -> ICharacter
         abstract member Health : int
@@ -129,14 +154,14 @@ module Entity =
         abstract member CanAttack : unit -> bool
 
     type HeroCharacter =
-        { Guid : string
+        { Guid : Guid
           Hp : int
           Armour : int
           AttackValue : int
           CanAttack : bool
           HasImmunity : bool }
 
-        override __.ToString() = __.Guid
+        override __.ToString() = __.Guid.value
 
         interface ICharacter with
             member __.Guid = __.Guid
@@ -160,7 +185,7 @@ module Entity =
             member __.CanAttack () = __.CanAttack
 
         static member Empty =
-            { Guid = Guid.NewGuid().ToString()
+            { Guid = { value = System.Guid.NewGuid().ToString() }
               Hp = Config.heroHp
               Armour = 0
               AttackValue = 0
@@ -168,7 +193,7 @@ module Entity =
               HasImmunity = false }
 
     type Minion =
-        { Guid : string
+        { Guid : Guid
           Card : Card
           Enchantments : string list
           AttackValue : int
@@ -178,7 +203,7 @@ module Entity =
           HasDivineShield : bool
           HasImmunity : bool }
 
-        override __.ToString() = __.Guid + " " + __.Card.ToString()
+        override __.ToString() = __.Guid.value + " " + __.Card.ToString()
 
         interface ICharacter with
             member __.Guid = __.Guid
@@ -208,7 +233,7 @@ module Entity =
         static member Parse (card : Card) = 
             if card.Type <> "Minion" then None
             else 
-                Some { Guid = Guid.NewGuid().ToString()
+                Some { Guid = { value = System.Guid.NewGuid().ToString() }
                        Card = card
                        Enchantments = []
                        AttackValue = card.Attack.Value
@@ -219,7 +244,8 @@ module Entity =
                        HasImmunity = false }
 
     type Weapon =
-        { Card : Card
+        { Guid : Guid
+          Card : Card
           Attack : int
           CanAttack : bool
           Durability : int
@@ -230,11 +256,13 @@ module Entity =
         static member Parse (card : Card) = 
             if card.Type <> "Weapon" then None
             else 
-                Some { Card = card
+                Some { Guid = { value = System.Guid.NewGuid().ToString() }
+                       Card = card
                        Enchantments = []
                        Attack = card.Attack.Value
                        CanAttack = false
-                       Durability = card.Durability.Value }
+                       Durability = card.Durability.Value 
+                     }
 
     type Spell =
         { Card : Card }
@@ -247,7 +275,7 @@ module Entity =
                 Some { Card = card }
 
     type Player =
-        { Guid : string
+        { Guid : Guid
           Name : string
           HeroClass : string
           HeroPower : HeroPower
@@ -260,12 +288,13 @@ module Entity =
           ActiveWeapon : Weapon option
           ActiveSecret : Card option
           CurrentMana : int
-          MaxMana : int }
+          MaxMana : int 
+        }
 
-        override __.ToString() = __.Guid + " " + __.Name
+        override __.ToString() = __.Guid.value + " " + __.Name
     
         static member Empty =
-          { Guid = Guid.NewGuid().ToString()
+          { Guid = { value = System.Guid.NewGuid().ToString() }
             Name = "EmptyPlayer"
             HeroClass = ""
             HeroPower = HeroPower.Empty
@@ -278,7 +307,8 @@ module Entity =
             ActiveWeapon = None
             ActiveSecret = None
             CurrentMana = 0
-            MaxMana = 0 }
+            MaxMana = 0 
+          }
     
     type GamePhase =
         | NotStarted
@@ -287,17 +317,19 @@ module Entity =
         | EndGame
 
     type GameSession =
-        { Guid : string
+        { Guid : Guid
           Players : Player list
-          ActivePlayerGuid : string
-          CurrentPhase : GamePhase }
+          ActivePlayerGuid : Guid
+          CurrentPhase : GamePhase
+        }
 
         member __.PlayerCount = __.Players.Length
 
-        override __.ToString() = __.Guid
+        override __.ToString() = __.Guid.value
 
         static member Init () =
-            { Guid = Guid.NewGuid().ToString()
+            { Guid = { value = System.Guid.NewGuid().ToString() }
               Players = []
-              ActivePlayerGuid = ""
-              CurrentPhase = GamePhase.NotStarted }
+              ActivePlayerGuid = { value = "" }
+              CurrentPhase = GamePhase.NotStarted
+            }

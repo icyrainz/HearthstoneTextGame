@@ -1,6 +1,5 @@
 ﻿namespace HearthstoneTextGame
 
-open System
 
 module Game =
 
@@ -18,13 +17,13 @@ module Game =
                             HeroPower = Hero.getHeroPower deck.DeckClass true
                             Deck = deck }               
 
-    let getPlayer (playerGuid : string) (game : GameSession) =
+    let getPlayer (playerGuid : Guid) (game : GameSession) =
         let result = game.Players |> List.filter(fun e -> e.Guid = playerGuid)
         match result |> List.isEmpty with
         | true -> None
         | false -> Some (result |> List.head)
 
-    let getOpponent (playerGuid : string) (game : GameSession) =
+    let getOpponent (playerGuid : Guid) (game : GameSession) =
         let result = game.Players |> List.filter(fun e -> e.Guid <> playerGuid)
         match result |> List.isEmpty with
         | true -> None
@@ -59,6 +58,7 @@ module Game =
                 newPlayer := { !newPlayer with MinionPosition = newMinionPosition })
         !newPlayer
 
+
     let updatePlayerToGame (player : Player) (game : GameSession) =
         let newPlayers =
             game.Players |> List.map (fun e ->
@@ -75,8 +75,27 @@ module Game =
             None
         else 
             let newMinionPosition = Utility.insert minion pos player.MinionPosition
+            // TODO: trigger battlecry
             let newPlayer = { player with MinionPosition = newMinionPosition }
             Some <| updatePlayerToGame newPlayer game
+
+    let updateMinionToDie (game : GameSession) =
+        { game with 
+            Players =
+                game.Players 
+                |> List.map(fun player ->
+                    let minions = 
+                        player.MinionPosition
+                        |> List.choose(fun m ->
+                            if m.CurrentHealth <= 0 then
+                                // TODO: process Deathrattle
+                                None
+                            else
+                                Some m
+                        )
+                    { player with MinionPosition = minions }
+                )
+        }
 
     let playWeapon (weapon : Weapon) (player : Player) (game : GameSession) =
         let newAttackValue = player.HeroCharacter.AttackValue + weapon.Attack
@@ -87,8 +106,12 @@ module Game =
     let drawCard (player : Player) (game : GameSession) =
         if player.Deck.RemainingCardsCount > 0 then  
             let cardDraw, remainDeck = Deck.drawCardFromDeck player.Deck
-            let cardDrawOnHand = { Cost = cardDraw.Cost.Value; Card = cardDraw }
-            let newHand = Utility.insert cardDrawOnHand (player.Hand |> List.length) player.Hand
+            let cardDrawOnHand = CardOnHand.Parse(cardDraw)    
+            let newHand =
+                if player.Hand.Length = Config.maxCardsOnHand then player.Hand
+                // Report too many cards on hand
+                else
+                    Utility.insert cardDrawOnHand player.Hand.Length player.Hand
             let newPlayer = { player with Hand = newHand; Deck = remainDeck }
             let newGame = updatePlayerToGame newPlayer game
             Some cardDraw, newGame
@@ -104,7 +127,7 @@ module Game =
             match player.HeroPower.Id with
             | "CS2_034" (* Fireblast *) ->
                 let newTarget = target.Value.GetDamage(1)
-                Some <| updateICharToGame [newTarget] newGame
+                updateICharToGame [newTarget] newGame |> updateMinionToDie |> Some
             | "CS2_017" (* Shapeshift *) ->
                 let armour = newPlayer.HeroCharacter.Armour + 1
                 let attackVal = newPlayer.HeroCharacter.AttackValue + 1
@@ -138,7 +161,7 @@ module Game =
                 else playWeapon knife.Value newPlayer newGame
             | "CS1h_001" (* Lesser Heal *) ->
                 let newTarget = target.Value.GetHeal(2)
-                Some <| updateICharToGame [newTarget] newGame
+                updateICharToGame [newTarget] newGame |> updateMinionToDie |> Some
             | "CS2_056" (* Life Tap *) ->
                 let _, newGame = drawCard newPlayer newGame
                 let newHeroCharacter = (newPlayer.HeroCharacter :> ICharacter).GetDamage(2) :?> HeroCharacter
@@ -151,7 +174,7 @@ module Game =
             | _ ->
                 None
 
-    let findIChar (guid : string) (game : GameSession) ifHero ifMinion =
+    let findIChar (guid : Guid) (game : GameSession) ifHero ifMinion =
         let found = 
             game.Players 
             |> List.choose (fun e ->
@@ -169,43 +192,79 @@ module Game =
         if found.Length = 1 then Some found.Head
         else None
 
+    let getOwnerPlayer (obj : ICharacter) (game : GameSession) =
+        game.Players 
+        |> List.filter (fun e ->
+            e.HeroCharacter.Guid = obj.Guid ||
+            e.MinionPosition |> List.exists (fun m -> m.Guid = obj.Guid)
+        )
+        |> List.head
+       
+
+    let findTarget (targetType : TargetType) (player : Player) (game : GameSession) =
+        getOpponent player.Guid game |> Option.map(fun opponent ->
+            match targetType with
+            | AnyTarget Any ->
+                [ player.HeroCharacter.Guid
+                  opponent.HeroCharacter.Guid ]
+                |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
+                |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
+            | AnyTarget Friendly ->
+                [ player.HeroCharacter.Guid ]
+                |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
+            | AnyTarget Enemy ->
+                [ opponent.HeroCharacter.Guid ]
+                |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
+            | MinionTarget Any ->
+                [ ]
+                |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
+                |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
+            | MinionTarget Friendly ->
+                [ ]
+                |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
+            | MinionTarget Enemy ->
+                [ ]
+                |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
+        )
+
     let findTargetForHeroPower (player : Player) (game : GameSession) =
         Hero.heroPowers |> List.tryFind(fun e -> e = player.HeroPower)
         |> Option.bind(fun heroPower ->
             heroPower.Target |> Option.bind(fun target -> 
-                getOpponent player.Guid game |> Option.map(fun opponent ->
-                    match target with
-                    | AnyTarget Any ->
-                        [ player.HeroCharacter.Guid
-                          opponent.HeroCharacter.Guid ]
-                        |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
-                        |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
-                    | AnyTarget Friendly ->
-                        [ player.HeroCharacter.Guid ]
-                        |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
-                    | AnyTarget Enemy ->
-                        [ opponent.HeroCharacter.Guid ]
-                        |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
-                    | MinionTarget Any ->
-                        [ ]
-                        |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
-                        |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
-                    | MinionTarget Friendly ->
-                        [ ]
-                        |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
-                    | MinionTarget Enemy ->
-                        [ ]
-                        |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
-                    )
-                )
+                findTarget target player game
             )
+        )
+
+    let findTargetForCard (card : Card) (player : Player) (game : GameSession) =
+        Card.getTargetForCard card.Name |> Option.bind(fun target ->
+            findTarget target player game
+        )
+
+    let playCard (card : CardOnHand) (pos : int option) (target : ICharacter option) (player : Player) (game : GameSession) =
+        if player.CurrentMana < card.Cost then None
+        else // TODO: DO SOMETHING TO TARGET
+            match card.Card.Type with
+            | "Spell" -> None
+            | "Weapon" ->
+                let mutable newPlayer = { player with CurrentMana = player.CurrentMana - card.Cost
+                                                      Hand = player.Hand |> List.filter(fun c -> c <> card)
+                                        }
+                (playWeapon (Weapon.Parse(card.Card).Value) newPlayer game)
+            | "Minion" ->
+                if pos.IsNone || player.MinionPosition.Length = Config.maxMinionsOnBoard then None
+                else
+                    let mutable newPlayer = { player with CurrentMana = player.CurrentMana - card.Cost
+                                                          Hand = player.Hand |> List.filter(fun c -> c <> card)
+                                            }
+                    (playMinion (Minion.Parse(card.Card).Value) pos.Value newPlayer game)
+            | _ -> None
 
     let startGame (game : GameSession) =
-        if game.PlayerCount <> 2 || game.CurrentPhase <> NotStarted then None
+        if game.PlayerCount <> Config.maxNumberOfPlayers || game.CurrentPhase <> NotStarted then None
         else
-            let startPlayer = Random().Next(2) |> List.nth game.Players
+            let startPlayer = Utility.rngNext(Config.maxNumberOfPlayers) |> List.nth game.Players
             let secondPlayer = (getOpponent startPlayer.Guid game).Value
-            let newSecondPlayer = { secondPlayer with Hand = { Cost = 0; Card = Card.TheCoin } :: secondPlayer.Hand}
+            let newSecondPlayer = { secondPlayer with Hand = CardOnHand.Parse(Card.TheCoin) :: secondPlayer.Hand}
             let newGame = updatePlayerToGame newSecondPlayer game
             let _, newGameWithDrawCard = drawCard startPlayer newGame
             Some { newGameWithDrawCard with ActivePlayerGuid = startPlayer.Guid; CurrentPhase = Playing }
@@ -245,3 +304,5 @@ module Game =
 
             // Set player and go to next phase
             Some <| updatePlayerToGame tempPlayer newGame
+
+    

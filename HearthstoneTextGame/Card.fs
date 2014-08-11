@@ -1,7 +1,5 @@
 ﻿namespace HearthstoneTextGame
 
-open System
-
 module Card =
 
     let basicTotems =
@@ -35,7 +33,7 @@ module Card =
 
     let getRandomPlayableCard (hero : string) =
         let eligibleCards = playableCards |> List.filter(fun e -> e.CardClass.IsNone)
-        List.nth eligibleCards <| Random().Next(eligibleCards.Length)
+        List.nth eligibleCards <| Utility.rngNext(eligibleCards.Length)
 
     let getCardByExactName (name : string) =
         EntityJson.All
@@ -51,7 +49,13 @@ module Card =
         nameList |> List.map (fun name -> (getCardByExactName name).Id)
 
     let TheCoin =
-        EntityJson.All 
-        |> List.find(fun e -> e.Name = "The Coin")
-        |> parseEntityJsonToCard
+        { (EntityJson.All 
+           |> List.find(fun e -> e.Name = "The Coin" && e.Type = "Spell")
+           |> parseEntityJsonToCard)
+           with Cost = Some 0
+        }
 
+    let getTargetForCard (cardName : string) =
+        match cardName with
+        | "Perdition's Blade" -> Some <| AnyTarget(Any)
+        | _ -> None

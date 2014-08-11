@@ -1,6 +1,5 @@
 ﻿namespace HearthstoneTextGame
 
-open System
 open System.IO
 open System.Text.RegularExpressions
 
@@ -36,7 +35,7 @@ module Deck =
     let parseDeckInCockatrice (text : string) =
         try
             let pattern = @"(\d{1}) (.+)"
-            let lines = text.Split([|"\n"|], StringSplitOptions.None)
+            let lines = text.Split([|"\n"|], System.StringSplitOptions.None)
             [ for line in lines do
                 let captureGroup = Regex.Match(line.Trim(), pattern).Groups
                 let numCard = captureGroup.Item(1).Value |> int

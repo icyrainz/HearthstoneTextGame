@@ -34,6 +34,8 @@ module Utility =
         [ "reynad_zoo.Warlock.deck"]
         |> List.map (fun deck -> getContentPath deck)
 
+    let rngNext (max : int) = Random().Next(max)
+
 module EntityJson =
 
     type T =
@@ -76,7 +78,11 @@ module EntityJson =
                 HowToGetGold = JsonExtensions.TryGetProperty(jsonVal,"howToGetGold") |> Option.map (fun e -> JsonExtensions.AsString(e))
                 Id = JsonExtensions.AsString(JsonExtensions.GetProperty(jsonVal,"id"))
                 InPlayText = JsonExtensions.TryGetProperty(jsonVal,"inPlayText") |> Option.map (fun e -> JsonExtensions.AsString(e))
-                Mechanics = JsonExtensions.AsArray(jsonVal) |> Array.map (fun e -> JsonExtensions.AsString(e)) |> Array.toList
+                Mechanics = 
+                    match JsonExtensions.TryGetProperty(jsonVal, "mechanics") with
+                    | None -> []
+                    | Some values -> 
+                        JsonExtensions.AsArray(values) |> Array.map (fun e -> JsonExtensions.AsString(e)) |> Array.toList
                 Name = JsonExtensions.AsString(JsonExtensions.GetProperty(jsonVal,"name"))
                 PlayerClass = JsonExtensions.TryGetProperty(jsonVal,"playerClass") |> Option.map (fun e -> JsonExtensions.AsString(e))
                 Race = JsonExtensions.TryGetProperty(jsonVal,"race") |> Option.map (fun e -> JsonExtensions.AsString(e))
@@ -96,6 +102,8 @@ module Config =
     let maxDeckSize = 30
     let heroHp = 30
     let maxMana = 10
+    let maxMinionsOnBoard = 7
+    let maxCardsOnHand = 10
      
 
 //type HeroClass =
@@ -108,13 +116,15 @@ module Config =
 //    | Rogue
 //    | Shaman
 //    | Druid
-//    | Other
+//    | NoClass
 //
 //type CardType =
 //    | Minion
 //    | Spell
 //    | Weapon
-//    | Other
+//    | Enchantment
+//    | Hero
+//    | HeroPower
 //
 //type CardRarity =
 //    | Legendary
@@ -131,6 +141,3 @@ module Config =
 //    | Murloc
 //    | Totem
 //
-//type CardMechanic =
-//    | BattleCry
-//    | Unknown
