@@ -6,9 +6,12 @@ It's like a strip-down version with no visual effects and eye candy but still ca
 Also, there is a plan to expose API in order to implement custom cards.
 
 ## Status ##
- - Improving web-interface.
- - Prepare to implement all cards and interactions.
+ - The app is currently at a very early stage.
+ - Main goal now is to lay down the foundation in the interface to micic the actual game.
 
+## Demo ##
+ - Try out the demo app at : http://hearthstonetextsimulator.apphb.com
+ - Feedbacks are very welcomed !
 
 #### Disclaimer ####
 
