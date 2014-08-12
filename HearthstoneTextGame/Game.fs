@@ -144,7 +144,7 @@ module Game =
                     |> List.filter(fun e -> 
                         newPlayer.MinionPosition 
                         |> List.exists(fun m -> m.Card.Name = e) |> not)
-                    |> List.map(fun e -> Minion.Parse(Card.getCardByExactName e).Value)
+                    |> List.map(fun e -> Minion.Parse(Card.getEntityByExactName(e).Value).Value)
                 if newTotems.Length = 0 then None
                 else playMinion (fst <| Utility.removeRandomElem newTotems) newPlayer.MinionPosition.Length newPlayer newGame          
             | "DS1h_292" (* Steady Shot *) ->
@@ -155,12 +155,12 @@ module Game =
                     let aPlayer = opponent.Value |> updatePlayer [newTarget]
                     Some <| updatePlayerToGame aPlayer newGame
             | "CS2_101" (* Reinforce *) ->
-                let card = Card.getCardByExactName("Silver Hand Recruit")
+                let card = Card.getEntityByExactName("Silver Hand Recruit").Value
                 let token = Minion.Parse(card)
                 if token.IsNone then None
                 else playMinion token.Value newPlayer.MinionPosition.Length newPlayer newGame
             | "CS2_083b" (* Dagger Mastery *) ->
-                let knife = Weapon.Parse(Card.getCardByExactName("Wicked Knife"))
+                let knife = Weapon.Parse(Card.getEntityByExactName("Wicked Knife").Value)
                 if knife.IsNone then None
                 else playWeapon knife.Value newPlayer newGame
             | "CS1h_001" (* Lesser Heal *) ->

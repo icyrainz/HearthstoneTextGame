@@ -25,11 +25,10 @@ module Card =
 
     let playableCards =
         EntityJson.All
-        |> Seq.filter(fun e ->
+        |> List.filter(fun e ->
             e.Collectible.IsSome && e.Collectible.Value
             && (e.Type = "Minion" || e.Type = "Spell" || e.Type = "Weapon"))
-        |> Seq.map(fun e -> parseEntityJsonToCard(e))
-        |> Seq.toList
+        |> List.map(fun e -> parseEntityJsonToCard(e))
 
     let getRandomPlayableCard (hero : string) =
         let eligibleCards = playableCards |> List.filter(fun e -> e.CardClass.IsNone)
@@ -37,11 +36,19 @@ module Card =
 
     let getCardByExactName (name : string) =
         playableCards
-        |> Seq.find(fun e -> e.Name = name)
+        |> List.find(fun e -> e.Name = name)
+
+    let getEntityByExactName (name : string) =
+        let entity =
+            EntityJson.All
+            |> Seq.filter(fun e -> e.Name = name) |> Seq.toList
+        if entity.Length = 0 then None
+        else
+            Some <| parseEntityJsonToCard entity.Head
 
     let getCardById (id : string) =
         playableCards
-        |> Seq.find(fun e -> e.Id = id)
+        |> List.find(fun e -> e.Id = id)
 
     let getCardIdsByNames (nameList : string list) =
         nameList |> List.map (fun name -> (getCardByExactName name).Id)
