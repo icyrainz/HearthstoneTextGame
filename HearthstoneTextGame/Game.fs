@@ -103,8 +103,11 @@ module Game =
                 player.Face.AttackValue - player.ActiveWeapon.Value.Attack + weapon.Attack
             else
                 player.Face.AttackValue + weapon.Attack
-        let newPlayer = { player with ActiveWeapon = Some { weapon with CanAttack = true }
-                                      Face = { player.Face with AttackValue = newAttackValue } }
+        let attackTokens = if weapon.Card.Mechanics |> List.exists(fun e -> e = "Windfury") then 2 else 1
+        let newPlayer = { player with ActiveWeapon = Some weapon
+                                      Face = { player.Face with AttackValue = newAttackValue
+                                                                AttackTokens = attackTokens } 
+                        }
         Some <| updatePlayerToGame newPlayer game
 
     let drawCard (player : Player) (game : GameSession) =
@@ -135,7 +138,8 @@ module Game =
             | "CS2_017" (* Shapeshift *) ->
                 let armour = newPlayer.Face.Armour + 1
                 let attackVal = newPlayer.Face.AttackValue + 1
-                let newHeroChar = { newPlayer.Face with Armour = armour; AttackValue = attackVal }
+                let newHeroChar = { newPlayer.Face with Armour = armour
+                                                        AttackValue = attackVal }
                 let aPlayer = newPlayer |> updatePlayer [newHeroChar]
                 Some <| updatePlayerToGame aPlayer newGame
             | "CS2_049" (* Totemic Call *) ->
@@ -278,6 +282,9 @@ module Game =
                                             }
                     (playMinion (Minion.Parse(card.Card).Value) pos.Value newPlayer game)
             | _ -> None
+
+    let attackByFace (player : Player) (target : ICharacter) (game : GameSession) =
+        ()
 
     let startGame (game : GameSession) =
         if game.PlayerCount <> Config.maxNumberOfPlayers || game.CurrentPhase <> NotStarted then None

@@ -68,7 +68,8 @@ module Client =
     let startGameButton = btn "Start Game" "startGameBtn" Default
 
     let leftPlayerEndTurnButton = btn "End Turn" "leftEndTurnBtn" Default
-    let leftPlayerUseHeroPowerButton = btn "Use Hero Power" "leftUseHeroPowerBtn" Default
+    let leftPlayerUseHeroPowerButton = btn "Use" "leftUseHeroPowerBtn" Default
+    let leftPlayerFaceAttackButton = btn "Attack" "leftFaceAtkBtn" Default
     let leftPlayerHand = UL [Attr.Class "list-group"; Id "leftHand"; Rel "emptyChildren"]
     let leftPlayerBoard = UL [Attr.Class "list-group"; Id "leftBoard"; Rel "emptyChildren"]
     let leftPlayerManaBar = 
@@ -83,7 +84,7 @@ module Client =
                   Id "leftProggressbarUsed" ]
         ]
     let leftPlayerInfoTable = 
-        Table [Attr.Class "table table-hover"; Id "leftInfo"] -< [
+        Table [Attr.Class "table table-hover myTable"; Id "leftInfo"] -< [
             THead [] -< [
                 TR [] -< [
                     TH [Text "field"]
@@ -93,41 +94,44 @@ module Client =
             TBody [] -< [
                 TR [] -< [
                     TD [Text "Player Name"]
-                    TD [Id "leftName"; Text "[None]"; Rel "clear"]
+                    TD [Id "leftName"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Player Class"]
-                    TD [Id "leftClass"; Text "[None]"; Rel "clear"]
+                    TD [Id "leftClass"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Hero Power"]
                     TD [Id "leftHeroPower"; Text "[None]"; Rel "clear"]
+                    TD [] -- leftPlayerUseHeroPowerButton
                 ]
                 TR [] -< [
                     TD [Text "Remaining Cards"]
-                    TD [Id "leftRemainingCardsCount"; Text "[None]"; Rel "clear"]
+                    TD [Id "leftRemainingCardsCount"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Health"]
-                    TD [Id "leftHealth"; Text "[None]"; Rel "clear"]
+                    TD [Id "leftHealth"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Armour"]
-                    TD [Id "leftArmour"; Text "[None]"; Rel "clear"]
+                    TD [Id "leftArmour"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Attack Value"]
                     TD [Id "leftAtkVal"; Text "[None]"; Rel "clear"]
+                    TD [] -- leftPlayerFaceAttackButton
                 ]
                 TR [] -< [
                     TD [Text "Weapon"]
-                    TD [Id "leftWeapon"; Text "[None]"; Rel "clear"]
+                    TD [Id "leftWeapon"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
             ]
         ]
 
     let rightPlayerEndTurnButton = btn "End Turn" "rightEndTurnBtn" Default
-    let rightPlayerUseHeroPowerButton = btn "Use Hero Power" "rightUseHeroPowerBtn" Default
+    let rightPlayerUseHeroPowerButton = btn "Use" "rightUseHeroPowerBtn" Default
+    let rightPlayerFaceAttackButton = btn "Attack" "rightFaceAtkBtn" Default
     let rightPlayerHand = UL [Attr.Class "list-group"; Id "rightHand"; Rel "emptyChildren"]
     let rightPlayerBoard = UL [Attr.Class "list-group"; Id "rightBoard"; Rel "emptyChildren"]
     let rightPlayerManaBar = 
@@ -142,7 +146,7 @@ module Client =
                   Id "rightProggressbarUsed" ]
         ]
     let rightPlayerInfoTable = 
-        Table [Attr.Class "table table-hover"; Id "rightInfo"] -< [
+        Table [Attr.Class "table table-hover myTable"; Id "rightInfo"] -< [
             THead [] -< [
                 TR [] -< [
                     TH [Text "field"]
@@ -152,35 +156,37 @@ module Client =
             TBody [] -< [
                 TR [] -< [
                     TD [Text "Player Name"]
-                    TD [Id "rightName"; Text "[None]"; Rel "clear"]
+                    TD [Id "rightName"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Player Class"]
-                    TD [Id "rightClass"; Text "[None]"; Rel "clear"]
+                    TD [Id "rightClass"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Hero Power"]
                     TD [Id "rightHeroPower"; Text "[None]"; Rel "clear"]
+                    TD [] -- rightPlayerUseHeroPowerButton
                 ]
                 TR [] -< [
                     TD [Text "Remaining Cards"]
-                    TD [Id "rightRemainingCardsCount"; Text "[None]"; Rel "clear"]
+                    TD [Id "rightRemainingCardsCount"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Health"]
-                    TD [Id "rightHealth"; Text "[None]"; Rel "clear"]
+                    TD [Id "rightHealth"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Armour"]
-                    TD [Id "rightArmour"; Text "[None]"; Rel "clear"]
+                    TD [Id "rightArmour"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
                 TR [] -< [
                     TD [Text "Attack Value"]
                     TD [Id "rightAtkVal"; Text "[None]"; Rel "clear"]
+                    TD [] -- rightPlayerFaceAttackButton
                 ]
                 TR [] -< [
                     TD [Text "Weapon"]
-                    TD [Id "rightWeapon"; Text "[None]"; Rel "clear"]
+                    TD [Id "rightWeapon"; Text "[None]"; Rel "clear"; ColSpan "2"]
                 ]
             ]
         ]
@@ -515,6 +521,11 @@ module Client =
                 JQuery.Of("#" + playerStr + "AtkVal").Parent().FadeOut().Ignore
             else
                 JQuery.Of("#" + playerStr + "AtkVal").Text(player.Face.AttackValue.ToString()).Parent().FadeIn().Ignore
+                JQuery.Of("#" + playerStr + "FaceAtkBtn").Show().Ignore
+                if player.Face.AttackCount < player.Face.AttackTokens then
+                    JQuery.Of("#" + playerStr + "FaceAtkBtn").AddClass("btn-success").RemoveAttr("disabled").Ignore
+                else
+                    JQuery.Of("#" + playerStr + "FaceAtkBtn").RemoveClass("btn-success").Attr("disabled", "true").Ignore
             JQuery.Of("#" + playerStr + "UseHeroPowerBtn").FadeIn().Ignore
             match (not player.HeroPowerUsed) && isActive && (player.HeroPower.Cost <= player.CurrentMana) with
             | true -> JQuery.Of("#" + playerStr + "UseHeroPowerBtn").AddClass("btn-success").RemoveAttr("disabled").Ignore
@@ -717,6 +728,17 @@ module Client =
             .Hide()
             .Click(fun _ _ -> useHeroPower currentGame.RightPlayer).Ignore
 
+        JQuery.Of(leftPlayerFaceAttackButton.Dom)
+            .Attr("disabled", "true")
+            .Hide()
+            .Click(fun _ _ -> ()).Ignore
+
+        JQuery.Of(rightPlayerFaceAttackButton.Dom)
+            .Attr("disabled", "true")
+            .Hide()
+            .Click(fun _ _ -> ()).Ignore
+            
+
     let Main () =
 
         Div [Attr.Class "col-md-12"] -< [
@@ -745,7 +767,6 @@ module Client =
                         Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Left Player"]
                         Div [Attr.Class "panel-body"] -< [ 
                             leftPlayerEndTurnButton
-                            leftPlayerUseHeroPowerButton
                             leftPlayerInfoTable
                             leftPlayerManaBar
                         ]
@@ -757,7 +778,6 @@ module Client =
                         Div [Attr.Class "panel-heading"] -- H3 [Attr.Class "panel-title"; Text "Right Player"]
                         Div [Attr.Class "panel-body"] -< [ 
                             rightPlayerEndTurnButton
-                            rightPlayerUseHeroPowerButton
                             rightPlayerInfoTable
                             rightPlayerManaBar
                         ]

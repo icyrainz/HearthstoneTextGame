@@ -77,7 +77,7 @@ module Entity =
         | HealTarget
         | Deathrattle
         | Combo
-        | DivineShield
+        | Divine_Shield
         | Windfury
         | Enrage
         | AffectedBySpellPower
@@ -150,14 +150,15 @@ module Entity =
         abstract member SetHealth : int -> ICharacter
         abstract member GetDamage : int -> ICharacter
         abstract member GetHeal : int -> ICharacter
-        abstract member CanAttack : unit -> bool
+        abstract member CanAttack : bool
 
     type Face =
         { Guid : Guid
           Hp : int
           Armour : int
           AttackValue : int
-          CanAttack : bool
+          AttackTokens : int
+          AttackCount : int
           HasImmunity : bool }
 
         override __.ToString() = __.Guid.value
@@ -181,14 +182,15 @@ module Entity =
             member __.GetHeal(value) =
                 let hp = __.Hp + Math.Min(value, Config.heroHp - __.Hp)
                 { __ with Hp = hp } :> ICharacter
-            member __.CanAttack () = __.CanAttack
+            member __.CanAttack = __.AttackCount < __.AttackTokens
 
         static member Empty =
             { Guid = { value = System.Guid.NewGuid().ToString() }
               Hp = Config.heroHp
               Armour = 0
               AttackValue = 0
-              CanAttack = false
+              AttackTokens = 1
+              AttackCount = 0
               HasImmunity = false }
 
     type Minion =
@@ -196,7 +198,8 @@ module Entity =
           Card : Card
           Enchantments : string list
           AttackValue : int
-          CanAttack : bool
+          AttackTokens : int
+          AttackCount : int
           CurrentHealth : int
           MaxHealth : int
           HasDivineShield : bool
@@ -227,7 +230,7 @@ module Entity =
                 let currentHealth =
                     __.CurrentHealth + Math.Min(amount, __.MaxHealth - __.CurrentHealth)
                 { __ with CurrentHealth = currentHealth } :> ICharacter
-            member __.CanAttack () = __.CanAttack
+            member __.CanAttack = __.AttackCount < __.AttackTokens
 
         static member Parse (card : Card) = 
             if card.Type <> "Minion" then None
@@ -236,17 +239,20 @@ module Entity =
                        Card = card
                        Enchantments = []
                        AttackValue = card.Attack.Value
-                       CanAttack = false
+                       AttackTokens = 
+                        match card.Mechanics |> List.exists(fun e -> e = "Windfury") with
+                        | true -> 2
+                        | false -> 1
+                       AttackCount = 0
                        CurrentHealth = card.Health.Value
                        MaxHealth = card.Health.Value
-                       HasDivineShield = false
+                       HasDivineShield = card.Mechanics |> List.exists(fun e -> e = "Divine Shield")
                        HasImmunity = false }
 
     type Weapon =
         { Guid : Guid
           Card : Card
           Attack : int
-          CanAttack : bool
           Durability : int
           Enchantments : string list }
 
@@ -259,7 +265,6 @@ module Entity =
                        Card = card
                        Enchantments = []
                        Attack = card.Attack.Value
-                       CanAttack = false
                        Durability = card.Durability.Value 
                      }
 

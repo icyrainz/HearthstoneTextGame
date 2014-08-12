@@ -135,6 +135,7 @@
     <Content Include="css\pnotify.custom.min.css" />
     <Content Include="js\main.js" />
     <Content Include="js\pnotify.custom.min.js" />
+    <None Include="css\main.css" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
