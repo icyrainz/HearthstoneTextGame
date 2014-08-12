@@ -30,7 +30,6 @@ module Client =
 
     type GameClient () =
         member val Guid = JavaScript.Undefined<Guid> with get, set
-        member val LastChanged = JavaScript.Undefined<int64> with get, set
         member val ActivePlayerGuid = JavaScript.Undefined<Guid> with get, set
         member val LeftPlayer = JavaScript.Undefined<Player> with get, set
         member val RightPlayer = JavaScript.Undefined<Player> with get, set
@@ -40,7 +39,6 @@ module Client =
         member __.HasRightPlayer () = __.RightPlayer <> JavaScript.Undefined<Player>
         member __.Clear() =
             __.Guid <- JavaScript.Undefined<Guid>
-            __.LastChanged <- JavaScript.Undefined<int64> 
             __.LeftPlayer <- JavaScript.Undefined<Player>
             __.RightPlayer <- JavaScript.Undefined<Player>
 
@@ -497,7 +495,7 @@ module Client =
             JQuery.Of("#" + playerStr + "Class").Text(player.HeroClass).Ignore
             JQuery.Of("#" + playerStr + "HeroPower").Text(player.HeroPower.Name).Ignore
             JQuery.Of("#" + playerStr + "RemainingCardsCount").Text(string player.Deck.CardIdList.Length).Ignore
-            JQuery.Of("#" + playerStr + "Health").Text(player.HeroCharacter.Hp.ToString()).Ignore
+            JQuery.Of("#" + playerStr + "Health").Text(player.Face.Hp.ToString()).Ignore
             if player.ActiveWeapon.IsSome then
                 JQuery.Of("#" + playerStr + "Weapon").Text("").Ignore
                 JQuery.Of("<div />").AddClass("row")
@@ -509,14 +507,14 @@ module Client =
             else
                 JQuery.Of("#" + playerStr + "Weapon").Parent().FadeOut().Ignore
 
-            if player.HeroCharacter.Armour = 0 then
+            if player.Face.Armour = 0 then
                 JQuery.Of("#" + playerStr + "Armour").Parent().FadeOut().Ignore
             else
-                JQuery.Of("#" + playerStr + "Armour").Text(player.HeroCharacter.Armour.ToString()).Parent().FadeIn().Ignore
-            if player.HeroCharacter.AttackValue = 0 then
+                JQuery.Of("#" + playerStr + "Armour").Text(player.Face.Armour.ToString()).Parent().FadeIn().Ignore
+            if player.Face.AttackValue = 0 then
                 JQuery.Of("#" + playerStr + "AtkVal").Parent().FadeOut().Ignore
             else
-                JQuery.Of("#" + playerStr + "AtkVal").Text(player.HeroCharacter.AttackValue.ToString()).Parent().FadeIn().Ignore
+                JQuery.Of("#" + playerStr + "AtkVal").Text(player.Face.AttackValue.ToString()).Parent().FadeIn().Ignore
             JQuery.Of("#" + playerStr + "UseHeroPowerBtn").FadeIn().Ignore
             match (not player.HeroPowerUsed) && isActive && (player.HeroPower.Cost <= player.CurrentMana) with
             | true -> JQuery.Of("#" + playerStr + "UseHeroPowerBtn").AddClass("btn-success").RemoveAttr("disabled").Ignore
@@ -553,27 +551,16 @@ module Client =
             JQuery.Of("#" + playerStr + "ProggressbarUsed").Css("width", "0%").Ignore
             )
 
-    let newGame gameGuid =
-        clearGame()
-        currentGame.Guid <- gameGuid
-        JQuery.Of(gameGuidLabel.Dom).Text(gameGuid.value + " " + (string currentGame.LastChanged)).Ignore
-        match Remoting.GetGameLastChangedTime currentGame.Guid with
-        | Success time -> currentGame.LastChanged <- time
-        | Error msg -> notifyError(msg)  
-        
-    let updatePlayers () =
+    let rec updatePlayers () =
         if currentGame.Exist() then
-            match Remoting.GetGameLastChangedTime currentGame.Guid with
-            | Error msg -> JavaScript.Log(msg)
-            | Success time ->
-                if time > currentGame.LastChanged then
+            doAsync (Remoting.AskForUpdate(currentGame.Guid))
+                (fun _ ->
+                    updatePlayers ()
                     doAsync (Remoting.GetActivePlayerGuid(currentGame.Guid))
                         (fun ret -> 
                             match ret with
                             | Success guid -> 
                                 currentGame.ActivePlayerGuid <- guid
-                                currentGame.LastChanged <- time
-                                JQuery.Of(gameGuidLabel.Dom).Text(currentGame.Guid.value + " " + (string currentGame.LastChanged)).Ignore             
                                 [ if currentGame.HasLeftPlayer() then yield currentGame.LeftPlayer.Guid
                                   if currentGame.HasRightPlayer() then yield currentGame.RightPlayer.Guid ]
                                 |> List.iter(fun playerGuid ->
@@ -585,6 +572,13 @@ module Client =
                                     )
                             | Error msg -> notifyError(msg)
                         )
+                )
+
+    let newGame gameGuid =
+        clearGame()
+        currentGame.Guid <- gameGuid
+        JQuery.Of(gameGuidLabel.Dom).Text(gameGuid.value).Ignore
+        updatePlayers ()
 
     let useHeroPower (player : Player) =
         doAsync (Remoting.DoesHeroPowerNeedTarget (player.HeroPower.Name))
@@ -620,13 +614,6 @@ module Client =
                             | Error msg -> notifyError(msg)
                         )
                 | Error msg -> notifyError(msg))
-
-    let backgroundTask = 
-        JavaScript.SetInterval
-            (fun _ ->
-                updatePlayers()
-            )
-            1000
 
     let setupButton =
 

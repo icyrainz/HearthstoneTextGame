@@ -49,8 +49,8 @@ module Game =
         let newPlayer = ref player
         items
         |> List.iter(fun item ->
-            if item.Guid = player.HeroCharacter.Guid then
-                newPlayer := { !newPlayer with HeroCharacter = (item :?> HeroCharacter) }
+            if item.Guid = player.Face.Guid then
+                newPlayer := { !newPlayer with Face = (item :?> Face) }
             else
                 let newMinionPosition =
                     player.MinionPosition |> List.map(fun minion ->
@@ -100,11 +100,11 @@ module Game =
     let playWeapon (weapon : Weapon) (player : Player) (game : GameSession) =
         let newAttackValue = 
             if player.ActiveWeapon.IsSome then
-                player.HeroCharacter.AttackValue - player.ActiveWeapon.Value.Attack + weapon.Attack
+                player.Face.AttackValue - player.ActiveWeapon.Value.Attack + weapon.Attack
             else
-                player.HeroCharacter.AttackValue + weapon.Attack
+                player.Face.AttackValue + weapon.Attack
         let newPlayer = { player with ActiveWeapon = Some { weapon with CanAttack = true }
-                                      HeroCharacter = { player.HeroCharacter with AttackValue = newAttackValue } }
+                                      Face = { player.Face with AttackValue = newAttackValue } }
         Some <| updatePlayerToGame newPlayer game
 
     let drawCard (player : Player) (game : GameSession) =
@@ -123,19 +123,19 @@ module Game =
             None, game
 
     let useHeroPower (player : Player) (target : ICharacter option) (game : GameSession) =
-        if player.CurrentMana < 2 then None
+        if player.CurrentMana < player.HeroPower.Cost then None
         else if player.HeroPowerUsed then None
         else
-            let newPlayer = { player with HeroPowerUsed = true; CurrentMana = player.CurrentMana - 2 }
+            let newPlayer = { player with HeroPowerUsed = true; CurrentMana = player.CurrentMana - player.HeroPower.Cost }
             let newGame = updatePlayerToGame newPlayer game
             match player.HeroPower.Id with
             | "CS2_034" (* Fireblast *) ->
                 let newTarget = target.Value.GetDamage(1)
                 updateICharToGame [newTarget] newGame |> updateMinionToDie |> Some
             | "CS2_017" (* Shapeshift *) ->
-                let armour = newPlayer.HeroCharacter.Armour + 1
-                let attackVal = newPlayer.HeroCharacter.AttackValue + 1
-                let newHeroChar = { newPlayer.HeroCharacter with Armour = armour; AttackValue = attackVal }
+                let armour = newPlayer.Face.Armour + 1
+                let attackVal = newPlayer.Face.AttackValue + 1
+                let newHeroChar = { newPlayer.Face with Armour = armour; AttackValue = attackVal }
                 let aPlayer = newPlayer |> updatePlayer [newHeroChar]
                 Some <| updatePlayerToGame aPlayer newGame
             | "CS2_049" (* Totemic Call *) ->
@@ -151,7 +151,7 @@ module Game =
                 let opponent = getOpponent newPlayer.Guid newGame
                 if opponent.IsNone then None
                 else
-                    let newTarget = (opponent.Value.HeroCharacter :> ICharacter).GetDamage(2)
+                    let newTarget = (opponent.Value.Face :> ICharacter).GetDamage(2)
                     let aPlayer = opponent.Value |> updatePlayer [newTarget]
                     Some <| updatePlayerToGame aPlayer newGame
             | "CS2_101" (* Reinforce *) ->
@@ -168,11 +168,11 @@ module Game =
                 updateICharToGame [newTarget] newGame |> updateMinionToDie |> Some
             | "CS2_056" (* Life Tap *) ->
                 let _, newGame = drawCard newPlayer newGame
-                let newHeroCharacter = (newPlayer.HeroCharacter :> ICharacter).GetDamage(2) :?> HeroCharacter
-                Some <| updateICharToGame [newHeroCharacter] newGame
+                let newFace = (newPlayer.Face :> ICharacter).GetDamage(2) :?> Face
+                Some <| updateICharToGame [newFace] newGame
             | "CS2_102" (* Armour Up! *) ->
-                let newArmour = newPlayer.HeroCharacter.Armour + 2
-                let newHeroChar = { newPlayer.HeroCharacter with Armour = newArmour }
+                let newArmour = newPlayer.Face.Armour + 2
+                let newHeroChar = { newPlayer.Face with Armour = newArmour }
                 let aPlayer = newPlayer |> updatePlayer [newHeroChar]
                 Some <| updatePlayerToGame aPlayer newGame
             | _ ->
@@ -182,9 +182,9 @@ module Game =
         let found = 
             game.Players 
             |> List.choose (fun e ->
-                if e.HeroCharacter.Guid = guid then
-                    ifHero e.HeroCharacter
-                    Some (e.HeroCharacter :> ICharacter)
+                if e.Face.Guid = guid then
+                    ifHero e.Face
+                    Some (e.Face :> ICharacter)
                 else
                     e.MinionPosition |> List.tryFind (fun m -> m.Guid = guid)
                     |> Option.map(fun minion ->
@@ -199,7 +199,7 @@ module Game =
     let getOwnerPlayer (obj : ICharacter) (game : GameSession) =
         game.Players 
         |> List.filter (fun e ->
-            e.HeroCharacter.Guid = obj.Guid ||
+            e.Face.Guid = obj.Guid ||
             e.MinionPosition |> List.exists (fun m -> m.Guid = obj.Guid)
         )
         |> List.head
@@ -209,15 +209,15 @@ module Game =
         getOpponent player.Guid game |> Option.map(fun opponent ->
             match targetType with
             | AnyTarget Any ->
-                [ player.HeroCharacter.Guid
-                  opponent.HeroCharacter.Guid ]
+                [ player.Face.Guid
+                  opponent.Face.Guid ]
                 |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
                 |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
             | AnyTarget Friendly ->
-                [ player.HeroCharacter.Guid ]
+                [ player.Face.Guid ]
                 |> List.append(player.MinionPosition |> List.map(fun e -> e.Guid))
             | AnyTarget Enemy ->
-                [ opponent.HeroCharacter.Guid ]
+                [ opponent.Face.Guid ]
                 |> List.append(opponent.MinionPosition |> List.map(fun e -> e.Guid))
             | MinionTarget Any ->
                 [ ]
@@ -308,7 +308,7 @@ module Game =
             
             // Reset hero character atk value to weapon atk
             tempPlayer <- { tempPlayer with 
-                                HeroCharacter = { tempPlayer.HeroCharacter with 
+                                Face = { tempPlayer.Face with 
                                                     AttackValue =
                                                         if tempPlayer.ActiveWeapon.IsSome then
                                                             tempPlayer.ActiveWeapon.Value.Attack

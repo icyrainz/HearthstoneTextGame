@@ -1,7 +1,6 @@
 ﻿namespace HearthstoneTextGame
 
 open System
-open IntelliFactory.WebSharper
 
 [<AutoOpen>]
 module Entity =
@@ -153,7 +152,7 @@ module Entity =
         abstract member GetHeal : int -> ICharacter
         abstract member CanAttack : unit -> bool
 
-    type HeroCharacter =
+    type Face =
         { Guid : Guid
           Hp : int
           Armour : int
@@ -283,7 +282,7 @@ module Entity =
           BonusSpellPower : int
           Deck : Deck
           Hand : CardOnHand list
-          HeroCharacter : HeroCharacter
+          Face : Face
           MinionPosition : Minion list
           ActiveWeapon : Weapon option
           ActiveSecret : Card option
@@ -302,7 +301,7 @@ module Entity =
             BonusSpellPower = 0
             Deck = Deck.Empty
             Hand = []
-            HeroCharacter = HeroCharacter.Empty
+            Face = Face.Empty
             MinionPosition = []
             ActiveWeapon = None
             ActiveSecret = None

@@ -36,14 +36,12 @@ module Card =
         List.nth eligibleCards <| Utility.rngNext(eligibleCards.Length)
 
     let getCardByExactName (name : string) =
-        EntityJson.All
+        playableCards
         |> Seq.find(fun e -> e.Name = name)
-        |> parseEntityJsonToCard
 
     let getCardById (id : string) =
-        EntityJson.All
+        playableCards
         |> Seq.find(fun e -> e.Id = id)
-        |> parseEntityJsonToCard
 
     let getCardIdsByNames (nameList : string list) =
         nameList |> List.map (fun name -> (getCardByExactName name).Id)

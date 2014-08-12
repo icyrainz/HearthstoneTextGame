@@ -32,8 +32,6 @@ module Utility =
         
     let predefinedDecksFileName = 
         System.IO.Directory.GetFiles(getContentPath "", "*deck") |> Array.toList
-//        [ "reynad_zoo.Warlock.deck"]
-//        |> List.map (fun deck -> getContentPath deck)
 
     let rngNext (max : int) = Random().Next(max)
 
@@ -105,40 +103,3 @@ module Config =
     let maxMana = 10
     let maxMinionsOnBoard = 7
     let maxCardsOnHand = 10
-     
-
-//type HeroClass =
-//    | Mage
-//    | Hunter
-//    | Priest
-//    | Warlock
-//    | Paladin
-//    | Warrior
-//    | Rogue
-//    | Shaman
-//    | Druid
-//    | NoClass
-//
-//type CardType =
-//    | Minion
-//    | Spell
-//    | Weapon
-//    | Enchantment
-//    | Hero
-//    | HeroPower
-//
-//type CardRarity =
-//    | Legendary
-//    | Epic
-//    | Rare
-//    | Common
-//    | Free
-//
-//type CardRace =
-//    | Beast
-//    | Demon
-//    | Pirate
-//    | Dragon
-//    | Murloc
-//    | Totem
-//

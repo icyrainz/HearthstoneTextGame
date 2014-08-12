@@ -45,19 +45,17 @@ module Deck =
         with
             _ -> failwith "Cannot parse deck"
 
-    let PredefinedDecks = 
-        let a =
-            Utility.predefinedDecksFileName |> List.map(fun deckFileName ->
-                let deckInfo = Regex.Match(deckFileName, @".*\\(.*)\.(.*)\..*")
-                let deckName = deckInfo.Groups.Item(1).Value
-                let deckClass = deckInfo.Groups.Item(2).Value
-                let deckCardList = parseCardListInCockatrice <| File.ReadAllText(deckFileName)
-                { Name = deckName
-                  DeckClass = deckClass
-                  CardIdList = deckCardList
-                } 
-            )
-        a
+    let PredefinedDecks =
+        Utility.predefinedDecksFileName |> List.map(fun deckFileName ->
+            let deckInfo = Regex.Match(deckFileName, @".*\\(.*)\.(.*)\..*")
+            let deckName = deckInfo.Groups.Item(1).Value
+            let deckClass = deckInfo.Groups.Item(2).Value
+            let deckCardList = parseCardListInCockatrice <| File.ReadAllText(deckFileName)
+            { Name = deckName
+              DeckClass = deckClass
+              CardIdList = deckCardList
+            } 
+        )
 
     let parseDeckInCockatrice (deckName : string) (deckClass : string) (text : string) =
         let deckCardList = parseCardListInCockatrice (text)

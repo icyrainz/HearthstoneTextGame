@@ -9,9 +9,19 @@ type Response<'T> =
     | Success of 'T
     | Error of string
 
-module Remoting =
+type GameEvent () =
 
+    let gameChangeEvt = new Event<_>()
+
+    [<CLIEvent>]
+    member this.GameChanged = gameChangeEvt.Publish
+    member this.Event = gameChangeEvt
+
+module Remoting =
+    
+    // #region Game DB
     let gameDb = new Dictionary<Guid, System.DateTime * GameSession>()
+    let gameEventDb = new Dictionary<Guid, GameEvent>()
 
     let updateGame (game : GameSession) =
         let now = System.DateTime.Now
@@ -23,8 +33,15 @@ module Remoting =
             if game <> gameInDb then
                 gameDb.Remove(game.Guid) |> ignore
                 gameDb.Add(game.Guid, (now, game))
+                gameEventDb.Item(game.Guid).Event.Trigger()
         | false ->
             gameDb.Add(game.Guid, (now, game))
+            gameEventDb.Add(game.Guid, GameEvent())
+
+    let getEvent (gameGuid : Guid) =
+        match gameEventDb.ContainsKey(gameGuid) with
+        | false -> None
+        | true -> Some <| gameEventDb.Item(gameGuid)
 
     let getGameTime gameGuid =
         match gameDb.ContainsKey(gameGuid) with
@@ -37,7 +54,9 @@ module Remoting =
         | false -> None
         | true ->
             gameDb.Item(gameGuid) |> snd |> Some
+    // #endregion
 
+    // #region Helper method
     let respond gameGuid callback =
         match doesGameExist gameGuid with
         | Some game ->
@@ -56,7 +75,57 @@ module Remoting =
                             ifFailure
                     )
         }
+    // #endregion
 
+    // #region Synchronous functions
+    [<Remote>]
+    let GetPlayableClass () = Hero.playableClasses
+
+    [<Remote>]
+    let GetPredefinedDeck () = async { return Deck.PredefinedDecks }
+
+    [<Remote>]
+    let GetICharName (guid : Guid) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                let name = ref ""
+                findIChar 
+                    guid
+                    game 
+                    (fun hero -> 
+                        game.Players 
+                        |> List.tryFind(fun e -> e.Face.Guid = guid)
+                        |> Option.iter(fun player -> name := "Face: " + player.Name)
+                    )
+                    (fun minion -> name := "Minion: " + minion.Card.Name) |> ignore
+                if name.Value = "" then None
+                else Some name.Value
+            )
+            (fun name -> Success(name))
+            (Error("Cannot find character"))
+        |> Async.RunSynchronously
+
+    [<Remote>]
+    let GetCard (cardId : string) =
+        async {
+            match Card.playableCards |> List.tryFind(fun e -> e.Id = cardId) with
+            | Some card -> return Success(card)
+            | None -> return Error("Cannot get card")
+        }
+        |> Async.RunSynchronously
+
+    [<Remote>]
+    let AskForUpdate (gameGuid : Guid) =
+        async {
+            let event = (getEvent (gameGuid)).Value.GameChanged
+            let waitTask = Async.AwaitEvent event |> Async.RunSynchronously |> ignore
+            return ()
+        }
+        
+    // #endregion
+
+    // #region Game administration functions
     [<Remote>]
     let NewGame () =
         async {
@@ -99,15 +168,6 @@ module Remoting =
             (Error ("Cannot register player"))
 
     [<Remote>]
-    let GetPlayableClass () = Hero.playableClasses
-
-    [<Remote>]
-    let GetPredefinedDeck () = 
-        async {
-            return Deck.PredefinedDecks
-        }
-
-    [<Remote>]
     let GetPlayer (playerGuid : Guid) (gameGuid : Guid) =
         respondAsync
             gameGuid
@@ -115,6 +175,18 @@ module Remoting =
             (fun player -> Success(player))
             (Error ("Cannot get player"))
 
+    [<Remote>]
+    let GetActivePlayerGuid (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                Some game.ActivePlayerGuid
+            )
+            (fun guid -> Success(guid))
+            (Error("Cannot get active player"))
+    // #endregion
+
+    // #region Gameplay functions
     [<Remote>]
     let DrawCard (playerGuid : Guid) (gameGuid : Guid) =
         respondAsync
@@ -172,47 +244,6 @@ module Remoting =
             )
             (fun targetList -> Success(targetList))
             (Error("Cannot find target"))
-
-    [<Remote>]
-    let GetICharName (guid : Guid) (gameGuid : Guid) =
-        respondAsync
-            gameGuid
-            (fun game ->
-                let name = ref ""
-                findIChar 
-                    guid
-                    game 
-                    (fun hero -> 
-                        game.Players 
-                        |> List.tryFind(fun e -> e.HeroCharacter.Guid = guid)
-                        |> Option.iter(fun player -> name := player.Name)
-                    )
-                    (fun minion -> name := minion.Card.Name) |> ignore
-                if name.Value = "" then None
-                else Some name.Value
-            )
-            (fun name -> Success(name))
-            (Error("Cannot find character"))
-        |> Async.RunSynchronously
-
-    [<Remote>]
-    let GetCard (cardId : string) =
-        async {
-            match Card.playableCards |> List.tryFind(fun e -> e.Id = cardId) with
-            | Some card -> return Success(card)
-            | None -> return Error("Cannot get card")
-        }
-        |> Async.RunSynchronously
-
-    [<Remote>]
-    let GetActivePlayerGuid (gameGuid : Guid) =
-        respondAsync
-            gameGuid
-            (fun game ->
-                Some game.ActivePlayerGuid
-            )
-            (fun guid -> Success(guid))
-            (Error("Cannot get active player"))
         
     [<Remote>]
     let StartGame (gameGuid : Guid) =
@@ -224,15 +255,6 @@ module Remoting =
                 Success("Game started")
             )
             (Error("Cannot start game"))
-
-    [<Remote>]
-    let GetGameLastChangedTime (gameGuid : Guid) =
-        async {
-            match getGameTime (gameGuid) with
-            | Some time -> return Success(time.Ticks)
-            | None -> return Error("Cannot get game time")
-        }
-        |> Async.RunSynchronously
 
     [<Remote>]
     let EndTurn (playerGuid : Guid) (gameGuid : Guid) =
@@ -289,3 +311,4 @@ module Remoting =
                 Success("Played: " + card.Card.Name)
             )
             (Error("Cannot play card"))
+    // #endregion

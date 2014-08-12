@@ -37,7 +37,7 @@ type ``Using Hero Power`` () =
 
         hunterPlayerAfterUse.Value.HeroPowerUsed |> should be True
         hunterPlayerAfterUse.Value.CurrentMana |> should equal 0
-        warlockPlayerAfterHit.Value.HeroCharacter.Hp |> should equal 28
+        warlockPlayerAfterHit.Value.Face.Hp |> should equal 28
 
     [<Fact>]
     member x.``Rogue should have the Knife`` () =
@@ -77,7 +77,7 @@ type ``Using Hero Power`` () =
         let playerAfterUse = (Game.getPlayer player.Guid gameAfter).Value
 
         playerAfterUse.CurrentMana |> should equal 0
-        playerAfterUse.HeroCharacter.Hp |> should equal (Config.heroHp - 2)
+        playerAfterUse.Face.Hp |> should equal (Config.heroHp - 2)
         playerAfterUse.Hand.Length |> should equal 1
         playerAfterUse.Deck.RemainingCardsCount |> should equal (Config.maxDeckSize - 1)
 
