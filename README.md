@@ -3,7 +3,6 @@ HearthstoneTextGame
 
 Re-implementing Hearthstone that is playable in web interface.
 It's like a strip-down version with no visual effects and eye candy but still can be enjoyed by hardcore fans.
-Also, there is a plan to expose API in order to implement custom cards.
 
 ## Languages and Tools ##
  - [F#](http://fsharp.org/): core game engine
@@ -12,6 +11,10 @@ Also, there is a plan to expose API in order to implement custom cards.
  - [PNotify](http://sciactive.com/pnotify/): JS extension for notification
  - [AppHarbor](http://appharbor.com/): deploying applications
  - [FsUnit](https://github.com/fsharp/fsunit) & [xUnit.NET](http://xunit.github.io/): testing framework
+
+## Planned Features  ##
+ - Custom game format
+ - Custom class / custom cards
 
 ## Status ##
  - The app is currently at a very early stage.
