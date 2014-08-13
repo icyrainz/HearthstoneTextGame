@@ -301,7 +301,7 @@ module Client =
                                     | false ->
                                         match card.Card.Type with
                                         | "Minion" ->
-                                            addItemsToAskForPosition (owner.MinionPosition |> List.map(fun e -> e.Card.Name))
+                                            addItemsToAskForPosition (owner.Minions |> List.map(fun e -> e.Card.Name))
                                                 (fun idx ->
                                                     doAsync (Remoting.PlayCard card (Some idx) None owner.Guid currentGame.Guid)
                                                         (fun ret ->
@@ -332,7 +332,7 @@ module Client =
                                                     let itemNameWithGuid = List.zip items itemName
                                                     match card.Card.Type with
                                                     | "Minion" ->
-                                                        addItemsToAskForPosition (owner.MinionPosition |> List.map(fun e -> e.Card.Name))
+                                                        addItemsToAskForPosition (owner.Minions |> List.map(fun e -> e.Card.Name))
                                                             (fun idx ->
                                                                 addItemsToAsk itemNameWithGuid
                                                                     (fun sel ->
@@ -359,7 +359,7 @@ module Client =
                                 )
                     )
             if playable then item.AddClass("btn btn-success")
-            else item.AddClass("btn btn-default")
+            else item.AddClass("btn btn-default").Attr("disabled", "true")
 
         let cardInfo =
             // TODO: change label color when real cost <> card cost
@@ -404,25 +404,49 @@ module Client =
             ).Ignore
         newItem
 
-    let minionTemplateDiv (minion : Minion) =
+    let doAttack (source : Guid) (owner : Player) =
+        doAsync (Remoting.FindTargetToAttack owner.Guid currentGame.Guid)
+            (fun res ->
+                match res with
+                | Success items ->
+                    let itemNames =
+                        items |> List.map (fun item ->
+                            match Remoting.GetICharName (item) currentGame.Guid with
+                            | Success name -> name
+                            | Error msg -> "Fail to load name !"
+                        )
+                    let itemNameWithGuid = List.zip items itemNames 
+                    addItemsToAsk itemNameWithGuid (fun choice ->
+                        doAsync (Remoting.AttackIChar source choice currentGame.Guid)
+                            (fun afterUse ->
+                                match afterUse with
+                                | Success msg -> notifySuccess(msg)
+                                | Error msg -> notifyError(msg)
+                            )
+                    )
+                | Error msg -> notifyError(msg)
+            )
+
+    let minionTemplateDiv (attackable : bool) (minion : Minion) (owner : Player) =
         let cardImgUrl = "http://wow.zamimg.com/images/hearthstone/cards/enus/medium/" + minion.Card.Id + ".png"
         let previewButton =
             JQuery.Of("<button />")
-                .AddClass("btn")
-                .AddClass("btn-default")
+                .AddClass("btn btn-default")
                 .Text("Image")
                 .Click(fun _ _ ->
                     notifyImage(cardImgUrl)
                 )
-        let attackButton = 
-            JQuery.Of("<button />")
-                .Attr("type", "button")
-                .AddClass("btn")
-                .AddClass("btn-default")
-                .Text("Attack")
-                .Click(fun _ _ ->
-                    ()
-                )
+        let attackButton =
+            let item =
+                JQuery.Of("<button />")
+                    .Attr("type", "button")
+                    .Text("Attack")
+                    .Click(fun _ _ ->
+                        doAttack minion.Guid owner
+                    )
+            match attackable with
+            | true -> item.AddClass("btn btn-success")
+            | false -> item.AddClass("btn btn-default").Attr("disabled", "true")
 
         let minionInfo =
             let name = 
@@ -504,7 +528,7 @@ module Client =
             JQuery.Of("#" + playerStr + "HeroPower").Text(player.HeroPower.Name).Ignore
             JQuery.Of("#" + playerStr + "RemainingCardsCount").Text(string player.Deck.CardIdList.Length).Ignore
             JQuery.Of("#" + playerStr + "Health").Text(player.Face.Hp.ToString()).Ignore
-            match player.ActiveWeapon with
+            match player.Face.Weapon with
             | Some weapon ->
                 JQuery.Of("#" + playerStr + "Weapon").Text("").Ignore
                 JQuery.Of("<div />").AddClass("row")
@@ -522,11 +546,15 @@ module Client =
             | _ ->
                 JQuery.Of("#" + playerStr + "Armour").Parent().FadeOut().Ignore
             
-            match player.Face.AttackValue with
+            let atkValue =
+                if player.Face.WeaponActivated && player.Face.Weapon.IsSome then player.Face.AttackValue + player.Face.Weapon.Value.Attack
+                else player.Face.AttackValue
+
+            match atkValue with
             | EqualZero ->
                 JQuery.Of("#" + playerStr + "AtkVal").Parent().FadeOut().Ignore
             | _ ->
-                JQuery.Of("#" + playerStr + "AtkVal").Text(player.Face.AttackValue.ToString()).Parent().FadeIn().Ignore
+                JQuery.Of("#" + playerStr + "AtkVal").Text(atkValue.ToString()).Parent().FadeIn().Ignore
                 JQuery.Of("#" + playerStr + "FaceAtkBtn").Show().Ignore
                 if player.Face.AttackCount < player.Face.AttackTokens then
                     JQuery.Of("#" + playerStr + "FaceAtkBtn").AddClass("btn-success").RemoveAttr("disabled").Ignore
@@ -541,27 +569,27 @@ module Client =
 
             JQuery.Of("#" + playerStr + "Hand").Children().Remove().Ignore
             player.Hand |> List.iter(fun card ->
-                let newCard = cardTemplateDiv (card.Cost <= player.CurrentMana) card player
+                let newCard = cardTemplateDiv ((card.Cost <= player.CurrentMana) && isActive) card player
                 JQuery.Of("#" + playerStr + "Hand").Append(JQuery.Of(newCard.Dom)).Ignore
             )
 
             JQuery.Of("#" + playerStr + "Board").Children().Remove().Ignore
-            player.MinionPosition |> List.iter(fun minion ->
-                let minion = minionTemplateDiv minion
+            player.Minions |> List.iter(fun minion ->
+                let minion = minionTemplateDiv ((minion.AttackCount < minion.AttackTokens) && isActive) minion player
                 JQuery.Of("#" + playerStr + "Board").Append(JQuery.Of(minion.Dom)).Ignore
             )
 
-    let clearGame () =
-        currentGame.Clear()
-        JQuery.Of("[rel='emptyChildren']").Children().Remove().Ignore
-        [ "left"; "right" ]
-        |> List.iter(fun playerStr -> JQuery.Of("#" + playerStr + "Panel").Hide().Ignore)
+//    let clearGame () =
+//        currentGame.Clear()
+//        JQuery.Of("[rel='emptyChildren']").Children().Remove().Ignore
+//        [ "left"; "right" ]
+//        |> List.iter(fun playerStr -> JQuery.Of("#" + playerStr + "Panel").Hide().Ignore)
 
     let rec updatePlayers () =
         if currentGame.Exist() then
             doAsync (Remoting.AskForUpdate(currentGame.Guid))
-                (fun _ ->
-                    updatePlayers ()
+                (fun (gameGuid, cont) ->
+                    if cont && (currentGame.Guid = gameGuid) then updatePlayers ()
                     doAsync (Remoting.GetActivePlayerGuid(currentGame.Guid))
                         (fun ret -> 
                             match ret with
@@ -580,11 +608,21 @@ module Client =
                         )
                 )
 
-    let newGame gameGuid =
-        clearGame()
-        currentGame.Guid <- gameGuid
-        JQuery.Of(gameGuidLabel.Dom).Text(gameGuid.value).Ignore
-        updatePlayers ()
+    let newGame () =
+        if currentGame.Exist() then notify("Refresh page to start new game !")
+        else
+            doAsync (Remoting.NewGame())
+                (fun res ->
+                    match res with
+                    | Success gameGuid ->
+                        currentGame.Guid <- gameGuid
+                        JQuery.Of(gameGuidLabel.Dom).Text(gameGuid.value).Ignore
+                        JQuery.Of(newGameButton.Dom).RemoveClass("btn-success").AddClass("btn-warning").Ignore
+                        updatePlayers ()
+
+                        
+                    | Error msg -> notifyError(msg))
+        
 
     let registerPlayer () =
         if currentGame.HasLeftPlayer() && currentGame.HasRightPlayer() then
@@ -679,12 +717,8 @@ module Client =
             
         JQuery.Of(newGameButton.Dom)
             .Click(fun _ _ ->
-                doAsync (Remoting.NewGame())
-                    (fun res ->
-                        match res with
-                        | Success gameGuid -> newGame gameGuid
-                        | Error msg -> notifyError(msg)))
-            .Ignore
+                newGame()
+            ).Ignore
 
         JQuery.Of(registerPlayerButton.Dom)
             .Click(fun _ _ ->
@@ -722,10 +756,10 @@ module Client =
             .Click(fun _ _ -> useHeroPower currentGame.RightPlayer).Hide().Ignore
 
         JQuery.Of(leftPlayerFaceAttackButton.Dom)
-            .Click(fun _ _ -> ()).Hide().Ignore
+            .Click(fun _ _ -> doAttack currentGame.LeftPlayer.Face.Guid currentGame.LeftPlayer).Hide().Ignore
 
         JQuery.Of(rightPlayerFaceAttackButton.Dom)
-            .Click(fun _ _ -> ()).Hide().Ignore
+            .Click(fun _ _ -> doAttack currentGame.RightPlayer.Face.Guid currentGame.RightPlayer).Hide().Ignore
             
 
     let Main () =

@@ -42,8 +42,8 @@ type ``Using Hero Power`` () =
 
         rogueAfterUse.CurrentMana |> should equal 0
         rogueAfterUse.HeroPowerUsed |> should be True
-        rogueAfterUse.ActiveWeapon.IsSome |> should be True
-        rogueAfterUse.ActiveWeapon.Value.Card.Name |> should equal "Wicked Knife"
+        rogueAfterUse.Face.Weapon.IsSome |> should be True
+        rogueAfterUse.Face.Weapon.Value.Card.Name |> should equal "Wicked Knife"
 
     [<Fact>]
     member x.``Shaman should summon a totem`` () =
@@ -52,8 +52,8 @@ type ``Using Hero Power`` () =
         let shamanAfterUse = (Game.getPlayer shaman.Guid gameAfter).Value
         
         shamanAfterUse.CurrentMana |> should equal 0
-        shamanAfterUse.MinionPosition.Length |> should equal 1
-        shamanAfterUse.MinionPosition.Head.Card.Race.Value |> should equal "Totem"
+        shamanAfterUse.Minions.Length |> should equal 1
+        shamanAfterUse.Minions.Head.Card.Race.Value |> should equal "Totem"
 
     [<Fact>]
     member x.``Paladin should have a 1/1`` () =
@@ -62,8 +62,8 @@ type ``Using Hero Power`` () =
         let paladinAfterUse = (Game.getPlayer paladin.Guid gameAfter).Value
 
         paladinAfterUse.CurrentMana |> should equal 0
-        paladinAfterUse.MinionPosition.Head.Card.Attack.Value |> should equal 1
-        paladinAfterUse.MinionPosition.Head.Card.Health.Value |> should equal 1
+        paladinAfterUse.Minions.Head.Card.Attack.Value |> should equal 1
+        paladinAfterUse.Minions.Head.Card.Health.Value |> should equal 1
     
     [<Fact>]
     member x.``Warlock should draw card and' lose health`` () =

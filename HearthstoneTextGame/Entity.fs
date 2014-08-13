@@ -1,7 +1,5 @@
 ﻿namespace HearthstoneTextGame
 
-open System
-
 [<AutoOpen>]
 module Entity =
 
@@ -18,6 +16,8 @@ module Entity =
         { value : string }
 
         override __.ToString() = __.value
+
+        static member New() = { value = System.Guid.NewGuid().ToString() }
 
     type HeroPower =
         { Id : string
@@ -122,7 +122,7 @@ module Entity =
           Cost : int
           Card : Card }
         static member Parse (card : Card) =
-            { Guid = { value = System.Guid.NewGuid().ToString() }
+            { Guid = Guid.New()
               Cost = card.Cost.Value
               Card = card
             }
@@ -142,114 +142,6 @@ module Entity =
               DeckClass = "Other"
               CardIdList = [] }
 
-    type ICharacter =
-        abstract member Guid : Guid
-        abstract member Attack : int
-        abstract member SetAttack : int -> ICharacter
-        abstract member Health : int
-        abstract member SetHealth : int -> ICharacter
-        abstract member GetDamage : int -> ICharacter
-        abstract member GetHeal : int -> ICharacter
-        abstract member CanAttack : bool
-
-    type Face =
-        { Guid : Guid
-          Hp : int
-          Armour : int
-          AttackValue : int
-          AttackTokens : int
-          AttackCount : int
-          HasImmunity : bool }
-
-        override __.ToString() = __.Guid.value
-
-        interface ICharacter with
-            member __.Guid = __.Guid
-            member __.Attack = __.AttackValue
-            member __.SetAttack (value) = { __ with AttackValue = value} :> ICharacter
-            member __.Health = __.Hp
-            member __.SetHealth (value) = { __ with Hp = value} :> ICharacter
-            member __.GetDamage (value) =
-                let mutable armour = __.Armour
-                let mutable hp = __.Hp
-                if not __.HasImmunity then
-                    if value <= __.Armour then
-                        armour <- __.Armour - value
-                    else
-                        hp <- __.Hp + __.Armour - value
-                        armour <- 0
-                        
-                { __ with Armour = armour; Hp = hp } :> ICharacter
-            member __.GetHeal(value) =
-                let hp = __.Hp + Math.Min(value, Config.heroHp - __.Hp)
-                { __ with Hp = hp } :> ICharacter
-            member __.CanAttack = __.AttackCount < __.AttackTokens
-
-        static member Empty =
-            { Guid = { value = System.Guid.NewGuid().ToString() }
-              Hp = Config.heroHp
-              Armour = 0
-              AttackValue = 0
-              AttackTokens = 1
-              AttackCount = 0
-              HasImmunity = false }
-
-    type Minion =
-        { Guid : Guid
-          Card : Card
-          Enchantments : string list
-          AttackValue : int
-          AttackTokens : int
-          AttackCount : int
-          CurrentHealth : int
-          MaxHealth : int
-          HasDivineShield : bool
-          HasImmunity : bool }
-
-        override __.ToString() = __.Guid.value + " " + __.Card.ToString()
-
-        interface ICharacter with
-            member __.Guid = __.Guid
-            member __.Attack = __.AttackValue
-            member __.SetAttack (value) = { __ with AttackValue = value } :> ICharacter 
-            member __.Health = __.CurrentHealth
-            member __.SetHealth (value) =
-                let maxHealth = value
-                let currentHealth = Math.Min(maxHealth, __.CurrentHealth)
-                { __ with MaxHealth = maxHealth; CurrentHealth = currentHealth} :> ICharacter
-            member __.GetDamage (damage) =
-                let mutable hasDivineShield = __.HasDivineShield
-                let mutable currentHealth = __.CurrentHealth
-                do
-                    if not __.HasImmunity then
-                        if __.HasDivineShield then
-                            hasDivineShield <- false
-                        else
-                            currentHealth <- __.CurrentHealth - damage
-                { __ with HasDivineShield = hasDivineShield; CurrentHealth = currentHealth } :> ICharacter
-            member __.GetHeal (amount) =
-                let currentHealth =
-                    __.CurrentHealth + Math.Min(amount, __.MaxHealth - __.CurrentHealth)
-                { __ with CurrentHealth = currentHealth } :> ICharacter
-            member __.CanAttack = __.AttackCount < __.AttackTokens
-
-        static member Parse (card : Card) = 
-            if card.Type <> "Minion" then None
-            else 
-                Some { Guid = { value = System.Guid.NewGuid().ToString() }
-                       Card = card
-                       Enchantments = []
-                       AttackValue = card.Attack.Value
-                       AttackTokens = 
-                        match card.Mechanics |> List.exists(fun e -> e = "Windfury") with
-                        | true -> 2
-                        | false -> 1
-                       AttackCount = 0
-                       CurrentHealth = card.Health.Value
-                       MaxHealth = card.Health.Value
-                       HasDivineShield = card.Mechanics |> List.exists(fun e -> e = "Divine Shield")
-                       HasImmunity = false }
-
     type Weapon =
         { Guid : Guid
           Card : Card
@@ -262,7 +154,7 @@ module Entity =
         static member Parse (card : Card) = 
             if card.Type <> "Weapon" then None
             else 
-                Some { Guid = { value = System.Guid.NewGuid().ToString() }
+                Some { Guid = Guid.New()
                        Card = card
                        Enchantments = []
                        Attack = card.Attack.Value
@@ -279,6 +171,148 @@ module Entity =
             else
                 Some { Card = card }
 
+    type ICharacter =
+        abstract member Guid : Guid
+        abstract member AttackValue : int
+        abstract member SetAttack : int -> ICharacter
+        abstract member Health : int
+        abstract member SetHealth : int -> ICharacter
+        abstract member GetDamage : int -> ICharacter
+        abstract member GetHeal : int -> ICharacter
+        abstract member CanAttack : bool
+        abstract member DoAttack : ICharacter -> ICharacter * ICharacter
+
+    type Face =
+        { Guid : Guid
+          Hp : int
+          Armour : int
+          AttackValue : int
+          Weapon : Weapon option
+          WeaponActivated : bool
+          AttackTokens : int
+          AttackCount : int
+          HasImmunity : bool }
+
+        override __.ToString() = __.Guid.value
+
+        interface ICharacter with
+            member __.Guid = __.Guid
+            member __.AttackValue =
+                if __.WeaponActivated && __.Weapon.IsSome then __.AttackValue + __.Weapon.Value.Attack
+                else __.AttackValue
+            member __.SetAttack (value) = { __ with AttackValue = value} :> ICharacter
+            member __.Health = __.Hp
+            member __.SetHealth (value) = { __ with Hp = value} :> ICharacter
+            member __.GetDamage (value) =
+                let mutable armour = __.Armour
+                let mutable hp = __.Hp
+                if not __.HasImmunity then
+                    if value <= __.Armour then
+                        armour <- __.Armour - value
+                    else
+                        hp <- __.Hp + __.Armour - value
+                        armour <- 0
+                        
+                { __ with Armour = armour; Hp = hp } :> ICharacter
+            member __.GetHeal(value) =
+                let hp = __.Hp + System.Math.Min(value, Config.heroHp - __.Hp)
+                { __ with Hp = hp } :> ICharacter
+            member __.CanAttack = __.AttackCount < __.AttackTokens
+            member __.DoAttack (target : ICharacter) =
+                let mutable newMe = { __ with AttackCount = __.AttackCount + 1 } :> ICharacter
+                let newWeapon = 
+                    __.Weapon |> Option.bind(fun w ->
+                        let newDura = w.Durability - 1
+                        if newDura > 0 then
+                            Some { w with Durability = newDura}
+                        else
+                            None
+                            //TODO : weapon death rattle
+                    )
+                newMe <- { (newMe :?> Face) with Weapon = newWeapon } :> ICharacter
+                newMe <- newMe.GetDamage(target.AttackValue)
+                let newTarget = target.GetDamage((__ :> ICharacter).AttackValue)
+                newMe, newTarget
+                
+
+        static member Empty =
+            { Guid = Guid.New()
+              Hp = Config.heroHp
+              Armour = 0
+              AttackValue = 0
+              Weapon = None
+              WeaponActivated = false
+              AttackTokens = 1
+              AttackCount = 0
+              HasImmunity = false }
+
+    type Minion =
+        { Guid : Guid
+          Card : Card
+          Enchantments : string list
+          AttackValue : int
+          AttackTokens : int
+          AttackCount : int
+          CurrentHealth : int
+          MaxHealth : int
+          HasDivineShield : bool
+          HasTaunt : bool
+          HasImmunity : bool }
+
+        override __.ToString() = __.Guid.value + " " + __.Card.ToString()
+
+        interface ICharacter with
+            member __.Guid = __.Guid
+            member __.AttackValue = __.AttackValue
+            member __.SetAttack (value) = { __ with AttackValue = value } :> ICharacter 
+            member __.Health = __.CurrentHealth
+            member __.SetHealth (value) =
+                let maxHealth = value
+                let currentHealth = System.Math.Min(maxHealth, __.CurrentHealth)
+                { __ with MaxHealth = maxHealth; CurrentHealth = currentHealth} :> ICharacter
+            member __.GetDamage (damage) =
+                let mutable hasDivineShield = __.HasDivineShield
+                let mutable currentHealth = __.CurrentHealth
+                do
+                    if not __.HasImmunity then
+                        if __.HasDivineShield then
+                            hasDivineShield <- false
+                        else
+                            currentHealth <- __.CurrentHealth - damage
+                { __ with HasDivineShield = hasDivineShield; CurrentHealth = currentHealth } :> ICharacter
+            member __.GetHeal (amount) =
+                let currentHealth =
+                    __.CurrentHealth + System.Math.Min(amount, __.MaxHealth - __.CurrentHealth)
+                { __ with CurrentHealth = currentHealth } :> ICharacter
+            member __.CanAttack = __.AttackCount < __.AttackTokens
+            member __.DoAttack (target : ICharacter) =
+                let mutable newMe = { __ with AttackCount = __.AttackCount + 1 } :> ICharacter
+                newMe <- newMe.GetDamage(target.AttackValue)
+                let newTarget = target.GetDamage((__ :> ICharacter).AttackValue)
+                newMe, newTarget
+
+        static member Parse (card : Card) = 
+            if card.Type <> "Minion" then None
+            else
+                let atkTokens =
+                    match card.Mechanics |> List.exists(fun e -> e = "Windfury") with
+                    | true -> 2
+                    | false -> 1
+                Some { Guid = Guid.New()
+                       Card = card
+                       Enchantments = []
+                       AttackValue = card.Attack.Value
+                       AttackTokens = atkTokens
+                       AttackCount = 
+                        match card.Mechanics |> List.exists(fun e -> e = "Charge") with
+                        | true -> 0
+                        | false -> atkTokens
+                       CurrentHealth = card.Health.Value
+                       MaxHealth = card.Health.Value
+                       HasTaunt = card.Mechanics |> List.exists(fun e -> e = "Taunt")
+                       HasDivineShield = card.Mechanics |> List.exists(fun e -> e = "Divine Shield")
+                       HasImmunity = false }
+
     type Player =
         { Guid : Guid
           Name : string
@@ -289,8 +323,7 @@ module Entity =
           Deck : Deck
           Hand : CardOnHand list
           Face : Face
-          MinionPosition : Minion list
-          ActiveWeapon : Weapon option
+          Minions : Minion list
           ActiveSecret : Card option
           CurrentMana : int
           MaxMana : int 
@@ -299,7 +332,7 @@ module Entity =
         override __.ToString() = __.Guid.value + " " + __.Name
     
         static member Empty =
-          { Guid = { value = System.Guid.NewGuid().ToString() }
+          { Guid = Guid.New()
             Name = "EmptyPlayer"
             HeroClass = ""
             HeroPower = HeroPower.Empty
@@ -308,8 +341,7 @@ module Entity =
             Deck = Deck.Empty
             Hand = []
             Face = Face.Empty
-            MinionPosition = []
-            ActiveWeapon = None
+            Minions = []
             ActiveSecret = None
             CurrentMana = 0
             MaxMana = 0 
@@ -333,7 +365,7 @@ module Entity =
         override __.ToString() = __.Guid.value
 
         static member Init () =
-            { Guid = { value = System.Guid.NewGuid().ToString() }
+            { Guid = Guid.New()
               Players = []
               ActivePlayerGuid = { value = "" }
               CurrentPhase = GamePhase.NotStarted

@@ -77,7 +77,7 @@ module Remoting =
         }
     // #endregion
 
-    // #region Synchronous functions
+    // #region Synchronous helper functions
     [<Remote>]
     let GetPlayableClass () = Hero.playableClasses
 
@@ -120,9 +120,15 @@ module Remoting =
         async {
             let event = (getEvent (gameGuid)).Value.GameChanged
             let waitTask = Async.AwaitEvent event |> Async.RunSynchronously |> ignore
-            return ()
+            // TODO: check if game ended -> no more update
+            return gameGuid, true
         }
-        
+       
+    [<Remote>]
+    let NumberOfGame () =
+        async {
+            return gameDb.Count
+        }
     // #endregion
 
     // #region Game administration functions
@@ -311,4 +317,35 @@ module Remoting =
                 Success("Played: " + card.Card.Name)
             )
             (Error("Cannot play card"))
+
+    [<Remote>]
+    let FindTargetToAttack (playerGuid : Guid) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                getPlayer playerGuid game
+                |> Option.bind(fun player -> findTargetToAttack player game)
+            )
+            (fun targetList -> 
+                Success(targetList))
+            (Error("Cannot find target"))
+
+    [<Remote>]
+    let AttackIChar (source : Guid) (target : Guid) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                findIChar source game (fun _ -> ()) (fun _ -> ())
+                    |> Option.bind(fun sourceIChar ->
+                        findIChar target game (fun _ -> ()) (fun _ -> ())
+                        |> Option.bind(fun targetIChar ->
+                            attackIChar sourceIChar targetIChar game
+                        )
+                    )
+            )
+            (fun newGame -> 
+                updateGame newGame
+                Success("Attacked")
+            )
+            (Error("Cannot attack"))
     // #endregion
