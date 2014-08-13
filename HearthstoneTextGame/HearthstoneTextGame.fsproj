@@ -132,10 +132,16 @@
     <Content Include="Content\reynad_zoo.Warlock.deck">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="Content\kolento_miracle.Hunter.deck">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Content\naxx_ramp.Druid.deck">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="css\pnotify.custom.min.css" />
+    <Content Include="css\main.css" />
     <Content Include="js\main.js" />
     <Content Include="js\pnotify.custom.min.js" />
-    <None Include="css\main.css" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

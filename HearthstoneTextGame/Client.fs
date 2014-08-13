@@ -481,15 +481,17 @@ module Client =
                 ""
         if playerStr = "" then JavaScript.Log("Unable to updatePlayer: " + player.Guid.value)
         else
+            JQuery.Of("#" + playerStr + "Panel").Show().Ignore
             let isActive = currentGame.ActivePlayerGuid = player.Guid
-            if isActive then
+            match isActive with
+            | true ->
                 JQuery.Of("#" + playerStr + "Panel").AddClass("panel-success").Ignore
                 JQuery.Of("#" + playerStr + "EndTurnBtn")
 //                    .RemoveClass("btn-success")
                     .AddClass("btn-warning")
                     .RemoveAttr("disabled").Ignore
                 JQuery.Of("#" + playerStr + "ProggressbarUnused").AddClass("progress-bar-striped active").Ignore
-            else
+            | false ->
                 JQuery.Of("#" + playerStr + "Panel").RemoveClass("panel-success").Ignore
                 JQuery.Of("#" + playerStr + "EndTurnBtn")
 //                    .RemoveClass("btn-success")
@@ -502,24 +504,28 @@ module Client =
             JQuery.Of("#" + playerStr + "HeroPower").Text(player.HeroPower.Name).Ignore
             JQuery.Of("#" + playerStr + "RemainingCardsCount").Text(string player.Deck.CardIdList.Length).Ignore
             JQuery.Of("#" + playerStr + "Health").Text(player.Face.Hp.ToString()).Ignore
-            if player.ActiveWeapon.IsSome then
+            match player.ActiveWeapon with
+            | Some weapon ->
                 JQuery.Of("#" + playerStr + "Weapon").Text("").Ignore
                 JQuery.Of("<div />").AddClass("row")
-                    .Append(JQuery.Of("<div />").AddClass("col-xs-9").Text(player.ActiveWeapon.Value.Card.Name))
-                    .Append(JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(player.ActiveWeapon.Value.Attack.ToString()))
-                    .Append(JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(player.ActiveWeapon.Value.Durability.ToString()))
+                    .Append(JQuery.Of("<div />").AddClass("col-xs-9").Text(weapon.Card.Name))
+                    .Append(JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(weapon.Attack.ToString()))
+                    .Append(JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(weapon.Durability.ToString()))
                     .AppendTo(JQuery.Of("#" + playerStr + "Weapon")).Ignore
                 JQuery.Of("#" + playerStr + "Weapon").Parent().FadeIn().Ignore
-            else
+            | None ->
                 JQuery.Of("#" + playerStr + "Weapon").Parent().FadeOut().Ignore
 
-            if player.Face.Armour = 0 then
-                JQuery.Of("#" + playerStr + "Armour").Parent().FadeOut().Ignore
-            else
+            match player.Face.Armour with
+            | GreaterThanZero ->
                 JQuery.Of("#" + playerStr + "Armour").Text(player.Face.Armour.ToString()).Parent().FadeIn().Ignore
-            if player.Face.AttackValue = 0 then
+            | _ ->
+                JQuery.Of("#" + playerStr + "Armour").Parent().FadeOut().Ignore
+            
+            match player.Face.AttackValue with
+            | EqualZero ->
                 JQuery.Of("#" + playerStr + "AtkVal").Parent().FadeOut().Ignore
-            else
+            | _ ->
                 JQuery.Of("#" + playerStr + "AtkVal").Text(player.Face.AttackValue.ToString()).Parent().FadeIn().Ignore
                 JQuery.Of("#" + playerStr + "FaceAtkBtn").Show().Ignore
                 if player.Face.AttackCount < player.Face.AttackTokens then
@@ -547,20 +553,9 @@ module Client =
 
     let clearGame () =
         currentGame.Clear()
-        JQuery.Of("[rel='clear']").Text("[None]").Ignore
         JQuery.Of("[rel='emptyChildren']").Children().Remove().Ignore
         [ "left"; "right" ]
-        |> List.iter(fun playerStr -> 
-            JQuery.Of("#" + playerStr + "Panel").RemoveClass("panel-success").Ignore
-            JQuery.Of("#" + playerStr + "EndTurnBtn")
-                .RemoveClass("btn-success")
-                .RemoveClass("btn-warning")
-                .Attr("disabled", "true")
-                .Ignore
-            JQuery.Of("#" + playerStr + "UseHeroPowerBtn").FadeOut().Ignore
-            JQuery.Of("#" + playerStr + "ProggressbarUnused").Css("width", "0%").Ignore
-            JQuery.Of("#" + playerStr + "ProggressbarUsed").Css("width", "0%").Ignore
-            )
+        |> List.iter(fun playerStr -> JQuery.Of("#" + playerStr + "Panel").Hide().Ignore)
 
     let rec updatePlayers () =
         if currentGame.Exist() then
@@ -590,6 +585,49 @@ module Client =
         currentGame.Guid <- gameGuid
         JQuery.Of(gameGuidLabel.Dom).Text(gameGuid.value).Ignore
         updatePlayers ()
+
+    let registerPlayer () =
+        if currentGame.HasLeftPlayer() && currentGame.HasRightPlayer() then
+            notifyError("Max number of players registered")
+        else
+            let classList = Remoting.GetPlayableClass()
+            let classWithIdList = List.zip classList classList
+            addItemsToAsk classWithIdList (fun selection ->
+                doAsync (Remoting.GetPredefinedDeck())
+                    (fun decks ->
+                        let classDeck = decks |> List.filter(fun e -> e.DeckClass = selection)
+                        let deckWithName = (List.zip classDeck (classDeck |> List.map(fun e -> e.Name))) @ [ JavaScript.Undefined<Deck>, "Random" ]
+                        addItemsToAsk deckWithName
+                            (fun selDeck ->
+                                if selDeck = JavaScript.Undefined<Deck> then
+                                    doAsync (Remoting.RegisterPlayerWithClass (selection + " Player") selection currentGame.Guid) 
+                                        (fun res ->
+                                            match res with
+                                            | Success playerGuid -> 
+                                                notifySuccess("Registered " + playerGuid.value)
+                                                doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
+                                                    (fun ret ->
+                                                        match ret with
+                                                        | Success player -> updatePlayer player
+                                                        | Error msg -> notifyError(msg))
+                                            | Error msg -> notifyError(msg)
+                                        )
+                                else
+                                    doAsync (Remoting.RegisterPlayerWithDeck selDeck.Name selDeck currentGame.Guid)
+                                        (fun res ->
+                                            match res with
+                                            | Success playerGuid -> 
+                                                notifySuccess("Registered " + playerGuid.value)
+                                                doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
+                                                    (fun ret ->
+                                                        match ret with
+                                                        | Success player -> updatePlayer player
+                                                        | Error msg -> notifyError(msg))
+                                            | Error msg -> notifyError(msg)
+                                        )
+                            )
+                    )                      
+            )
 
     let useHeroPower (player : Player) =
         doAsync (Remoting.DoesHeroPowerNeedTarget (player.HeroPower.Name))
@@ -650,51 +688,10 @@ module Client =
 
         JQuery.Of(registerPlayerButton.Dom)
             .Click(fun _ _ ->
-                if currentGame.HasLeftPlayer() && currentGame.HasRightPlayer() then
-                    notifyError("Max number of players registered")
-                else
-                    let classList = Remoting.GetPlayableClass()
-                    let classWithIdList = List.zip classList classList
-                    addItemsToAsk classWithIdList (fun selection ->
-                        doAsync (Remoting.GetPredefinedDeck())
-                            (fun decks ->
-                                let classDeck = decks |> List.filter(fun e -> e.DeckClass = selection)
-                                let deckWithName = (List.zip classDeck (classDeck |> List.map(fun e -> e.Name))) @ [ JavaScript.Undefined<Deck>, "Random" ]
-                                addItemsToAsk deckWithName
-                                    (fun selDeck ->
-                                        if selDeck = JavaScript.Undefined<Deck> then
-                                            doAsync (Remoting.RegisterPlayerWithClass (selection + " Player") selection currentGame.Guid) 
-                                                (fun res ->
-                                                    match res with
-                                                    | Success playerGuid -> 
-                                                        notifySuccess("Registered " + playerGuid.value)
-                                                        doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
-                                                            (fun ret ->
-                                                                match ret with
-                                                                | Success player -> updatePlayer player
-                                                                | Error msg -> notifyError(msg))
-                                                    | Error msg -> notifyError(msg)
-                                                )
-                                        else
-                                            doAsync (Remoting.RegisterPlayerWithDeck selDeck.Name selDeck currentGame.Guid)
-                                                (fun res ->
-                                                    match res with
-                                                    | Success playerGuid -> 
-                                                        notifySuccess("Registered " + playerGuid.value)
-                                                        doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
-                                                            (fun ret ->
-                                                                match ret with
-                                                                | Success player -> updatePlayer player
-                                                                | Error msg -> notifyError(msg))
-                                                    | Error msg -> notifyError(msg)
-                                                )
-                                    )
-                            )                      
-                    )
+                registerPlayer()
             ).Ignore
 
         JQuery.Of(leftPlayerEndTurnButton.Dom)
-            .Attr("disabled", "true")
             .Click(fun _ _ ->
                 doAsync (Remoting.EndTurn currentGame.LeftPlayer.Guid currentGame.Guid)
                     (fun ret ->
@@ -703,10 +700,10 @@ module Client =
                         | Error msg -> notifyError(msg)
                     )
                 )
+            .Attr("disabled", "true")
             .Ignore
 
         JQuery.Of(rightPlayerEndTurnButton.Dom)
-            .Attr("disabled", "true")
             .Click(fun _ _ ->
                 doAsync (Remoting.EndTurn currentGame.RightPlayer.Guid currentGame.Guid)
                     (fun ret ->
@@ -715,28 +712,20 @@ module Client =
                         | Error msg -> notifyError(msg)
                     )
                 )
-            .Ignore
-            
+            .Attr("disabled", "true")
+            .Ignore           
             
         JQuery.Of(leftPlayerUseHeroPowerButton.Dom)
-            .Attr("disabled", "true")
-            .Hide()
-            .Click(fun _ _ -> useHeroPower currentGame.LeftPlayer).Ignore
+            .Click(fun _ _ -> useHeroPower currentGame.LeftPlayer).Hide().Ignore
 
         JQuery.Of(rightPlayerUseHeroPowerButton.Dom)
-            .Attr("disabled", "true")
-            .Hide()
-            .Click(fun _ _ -> useHeroPower currentGame.RightPlayer).Ignore
+            .Click(fun _ _ -> useHeroPower currentGame.RightPlayer).Hide().Ignore
 
         JQuery.Of(leftPlayerFaceAttackButton.Dom)
-            .Attr("disabled", "true")
-            .Hide()
-            .Click(fun _ _ -> ()).Ignore
+            .Click(fun _ _ -> ()).Hide().Ignore
 
         JQuery.Of(rightPlayerFaceAttackButton.Dom)
-            .Attr("disabled", "true")
-            .Hide()
-            .Click(fun _ _ -> ()).Ignore
+            .Click(fun _ _ -> ()).Hide().Ignore
             
 
     let Main () =
@@ -769,9 +758,9 @@ module Client =
                             leftPlayerEndTurnButton
                             leftPlayerInfoTable
                             leftPlayerManaBar
+                            leftPlayerHand
                         ]
                     ]
-                    leftPlayerHand
                 ]
                 Div [Attr.Class "col-md-6 column"] -< [
                     Div [Attr.Class "panel panel-default"; Id "rightPanel"] -< [
@@ -780,9 +769,9 @@ module Client =
                             rightPlayerEndTurnButton
                             rightPlayerInfoTable
                             rightPlayerManaBar
+                            rightPlayerHand
                         ]
                     ]
-                    rightPlayerHand
                 ]
             ]
             Div [Attr.Class "panel panel-info"] -< [

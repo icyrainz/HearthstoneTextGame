@@ -176,8 +176,9 @@ module Entity =
                     if value <= __.Armour then
                         armour <- __.Armour - value
                     else
+                        hp <- __.Hp + __.Armour - value
                         armour <- 0
-                        hp <- __.Hp - + __.Armour - value
+                        
                 { __ with Armour = armour; Hp = hp } :> ICharacter
             member __.GetHeal(value) =
                 let hp = __.Hp + Math.Min(value, Config.heroHp - __.Hp)

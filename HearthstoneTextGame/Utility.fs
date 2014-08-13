@@ -1,7 +1,6 @@
 ﻿namespace HearthstoneTextGame
 
 open System
-open System.Web.Hosting
 open System.IO
 open FSharp.Data
 open IntelliFactory.WebSharper
@@ -34,6 +33,14 @@ module Utility =
         System.IO.Directory.GetFiles(getContentPath "", "*deck") |> Array.toList
 
     let rngNext (max : int) = Random().Next(max)
+
+[<AutoOpen>]
+[<JavaScript>]
+module Helper =
+    let (|EqualZero|GreaterThanZero|LessThanZero|) number =
+        if number = 0 then EqualZero
+        else if number > 0 then GreaterThanZero
+        else LessThanZero
 
 module EntityJson =
 

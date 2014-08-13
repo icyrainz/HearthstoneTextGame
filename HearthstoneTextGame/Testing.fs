@@ -8,11 +8,6 @@ type ``With Reynad Zoodeck`` () =
 
     let zooDeck = Deck.PredefinedDecks |> List.find(fun deck -> deck.Name.Contains("zoo"))
 
-
-    [<Fact>]
-    member x.`` obvious 1 = 1 `` () =
-        1 |> should equal 1
-
     [<Fact>]
     member x.``it should have at least 1 Doomguard`` () =
         zooDeck.CardIdList |> should contain (Card.getCardByExactName("Doomguard").Id)
@@ -80,8 +75,3 @@ type ``Using Hero Power`` () =
         playerAfterUse.Face.Hp |> should equal (Config.heroHp - 2)
         playerAfterUse.Hand.Length |> should equal 1
         playerAfterUse.Deck.RemainingCardsCount |> should equal (Config.maxDeckSize - 1)
-
-    [<Fact>]
-    member x.``test playable cards`` () =
-        let a = Card.playableCards
-        printfn "%s" a.Head.Name
