@@ -70,3 +70,13 @@ var hideModal = function (e) {
     $('body').removeClass('modal-open');
     $('.modal-backdrop').remove();
 };
+
+var startTimerBar = function (e) {
+    $("#timerBar").progressTimer({
+        timeLimit: 75,
+        warningThreshold: 15,
+        baseStyle: 'progress-bar-warning',
+        warningStyle: 'progress-bar-danger',
+        completeStyle: 'progress-bar-info'
+    });
+};

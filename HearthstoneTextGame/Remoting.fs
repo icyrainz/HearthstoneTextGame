@@ -119,7 +119,7 @@ module Remoting =
     let AskForUpdate (gameGuid : Guid) =
         async {
             let event = (getEvent (gameGuid)).Value.GameChanged
-            let waitTask = Async.AwaitEvent event |> Async.RunSynchronously |> ignore
+            let waitTask = Async.RunSynchronously (Async.AwaitEvent event, 30 * 60 * 1000) |> ignore
             // TODO: check if game ended -> no more update
             return gameGuid, true
         }

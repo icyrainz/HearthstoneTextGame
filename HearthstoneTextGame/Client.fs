@@ -60,6 +60,9 @@ module Client =
     [<Inline " hideModal() ">]
     let hideModal () = ()
 
+    [<Inline " startTimerBar() ">]
+    let startTimerBar () = ()
+
     let currentGame = GameClient()
     let gameGuidLabel = Span [Text "[None]"]
 
@@ -575,7 +578,7 @@ module Client =
 
             JQuery.Of("#" + playerStr + "Board").Children().Remove().Ignore
             player.Minions |> List.iter(fun minion ->
-                let minion = minionTemplateDiv ((minion.AttackCount < minion.AttackTokens) && isActive) minion player
+                let minion = minionTemplateDiv ((minion.AttackCount < minion.AttackTokens) && isActive && minion.AttackValue > 0) minion player
                 JQuery.Of("#" + playerStr + "Board").Append(JQuery.Of(minion.Dom)).Ignore
             )
 
@@ -586,27 +589,32 @@ module Client =
 //        |> List.iter(fun playerStr -> JQuery.Of("#" + playerStr + "Panel").Hide().Ignore)
 
     let rec updatePlayers () =
-        if currentGame.Exist() then
-            doAsync (Remoting.AskForUpdate(currentGame.Guid))
-                (fun (gameGuid, cont) ->
-                    if cont && (currentGame.Guid = gameGuid) then updatePlayers ()
-                    doAsync (Remoting.GetActivePlayerGuid(currentGame.Guid))
-                        (fun ret -> 
-                            match ret with
-                            | Success guid -> 
-                                currentGame.ActivePlayerGuid <- guid
-                                [ if currentGame.HasLeftPlayer() then yield currentGame.LeftPlayer.Guid
-                                  if currentGame.HasRightPlayer() then yield currentGame.RightPlayer.Guid ]
-                                |> List.iter(fun playerGuid ->
-                                    doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
-                                        (fun res -> 
-                                            match res with
-                                            | Success player -> updatePlayer player
-                                            | Error msg -> notifyError(msg))
-                                    )
-                            | Error msg -> notifyError(msg)
-                        )
-                )
+        try
+            if currentGame.Exist() then
+                doAsync (Remoting.AskForUpdate(currentGame.Guid))
+                    (fun (gameGuid, cont) ->
+                        if cont && (currentGame.Guid = gameGuid) then updatePlayers ()
+                        doAsync (Remoting.GetActivePlayerGuid(currentGame.Guid))
+                            (fun ret -> 
+                                match ret with
+                                | Success guid -> 
+                                    currentGame.ActivePlayerGuid <- guid
+                                    [ if currentGame.HasLeftPlayer() then yield currentGame.LeftPlayer.Guid
+                                      if currentGame.HasRightPlayer() then yield currentGame.RightPlayer.Guid ]
+                                    |> List.iter(fun playerGuid ->
+                                        doAsync (Remoting.GetPlayer playerGuid currentGame.Guid)
+                                            (fun res -> 
+                                                match res with
+                                                | Success player -> updatePlayer player
+                                                | Error msg -> notifyError(msg))
+                                        )
+                                | Error msg -> notifyError(msg)
+                            )
+                    )
+        with
+        | e -> 
+            JavaScript.Log("Error: " + e.ToString())
+            updatePlayers()
 
     let newGame () =
         if currentGame.Exist() then notify("Refresh page to start new game !")
@@ -727,6 +735,7 @@ module Client =
 
         JQuery.Of(leftPlayerEndTurnButton.Dom)
             .Click(fun _ _ ->
+                startTimerBar()
                 doAsync (Remoting.EndTurn currentGame.LeftPlayer.Guid currentGame.Guid)
                     (fun ret ->
                         match ret with
@@ -739,6 +748,7 @@ module Client =
 
         JQuery.Of(rightPlayerEndTurnButton.Dom)
             .Click(fun _ _ ->
+                startTimerBar()
                 doAsync (Remoting.EndTurn currentGame.RightPlayer.Guid currentGame.Guid)
                     (fun ret ->
                         match ret with
@@ -760,7 +770,7 @@ module Client =
 
         JQuery.Of(rightPlayerFaceAttackButton.Dom)
             .Click(fun _ _ -> doAttack currentGame.RightPlayer.Face.Guid currentGame.RightPlayer).Hide().Ignore
-            
+    
 
     let Main () =
 
@@ -818,6 +828,7 @@ module Client =
                 ]
             ]
             modalDiv
+            Div [Id "timerBar"]
         ]
 
     let About () =

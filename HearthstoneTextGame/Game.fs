@@ -314,8 +314,6 @@ module Game =
             let _, newGameWithDrawCard = drawCard newStartPlayer newGame
             Some { newGameWithDrawCard with ActivePlayerGuid = newStartPlayer.Guid; CurrentPhase = Playing }
 
-            
-
     let endTurn (game : GameSession) =
         if game.CurrentPhase <> Playing then None
         else

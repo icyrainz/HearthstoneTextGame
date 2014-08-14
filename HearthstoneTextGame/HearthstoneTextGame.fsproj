@@ -142,6 +142,7 @@
     <Content Include="css\main.css" />
     <Content Include="js\main.js" />
     <Content Include="js\pnotify.custom.min.js" />
+    <Content Include="js\jquery.progressTimer.min.js" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
