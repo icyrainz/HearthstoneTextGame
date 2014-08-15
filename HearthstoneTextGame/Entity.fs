@@ -11,6 +11,7 @@ module Entity =
     type TargetType =
         | AnyTarget of TargetHostile
         | MinionTarget of TargetHostile
+        | FaceTarget of TargetHostile
 
     type Guid = 
         { value : string }
@@ -223,11 +224,7 @@ module Entity =
                 let newWeapon = 
                     __.Weapon |> Option.bind(fun w ->
                         let newDura = w.Durability - 1
-                        if newDura > 0 then
-                            Some { w with Durability = newDura}
-                        else
-                            None
-                            //TODO : weapon death rattle
+                        Some { w with Durability = newDura}
                     )
                 newMe <- { (newMe :?> Face) with Weapon = newWeapon } :> ICharacter
                 newMe <- newMe.GetDamage(target.AttackValue)

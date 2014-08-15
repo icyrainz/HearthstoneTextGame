@@ -26,7 +26,7 @@ type ``Using Hero Power`` () =
     [<Fact>]
     member x.``Hunter should deal 2 damage`` () =
         let hunterPlayer, warlockPlayer, gameWithHunterAndWarlock = register2Class "Hunter" "Warlock"
-        let gameWithHunterAndWarlockAfterHunterUseHeroPower = (Game.useHeroPower hunterPlayer None gameWithHunterAndWarlock).Value
+        let gameWithHunterAndWarlockAfterHunterUseHeroPower = (Game.useHeroPower hunterPlayer.Guid None gameWithHunterAndWarlock).Value
         let hunterPlayerAfterUse = Game.getPlayer hunterPlayer.Guid gameWithHunterAndWarlockAfterHunterUseHeroPower
         let warlockPlayerAfterHit = Game.getPlayer warlockPlayer.Guid gameWithHunterAndWarlockAfterHunterUseHeroPower
 
@@ -37,7 +37,7 @@ type ``Using Hero Power`` () =
     [<Fact>]
     member x.``Rogue should have the Knife`` () =
         let roguePlayer, _, game = register2Class "Rogue" "Warlock"
-        let gameAfter = (Game.useHeroPower roguePlayer None game).Value
+        let gameAfter = (Game.useHeroPower roguePlayer.Guid None game).Value
         let rogueAfterUse = (Game.getPlayer roguePlayer.Guid gameAfter).Value
 
         rogueAfterUse.CurrentMana |> should equal 0
@@ -48,7 +48,7 @@ type ``Using Hero Power`` () =
     [<Fact>]
     member x.``Shaman should summon a totem`` () =
         let shaman, _, game = register2Class "Shaman" "Warlock"
-        let gameAfter = (Game.useHeroPower shaman None game).Value
+        let gameAfter = (Game.useHeroPower shaman.Guid None game).Value
         let shamanAfterUse = (Game.getPlayer shaman.Guid gameAfter).Value
         
         shamanAfterUse.CurrentMana |> should equal 0
@@ -58,7 +58,7 @@ type ``Using Hero Power`` () =
     [<Fact>]
     member x.``Paladin should have a 1/1`` () =
         let paladin, _, game = register2Class "Paladin" "Warlock"
-        let gameAfter = (Game.useHeroPower paladin None game).Value
+        let gameAfter = (Game.useHeroPower paladin.Guid None game).Value
         let paladinAfterUse = (Game.getPlayer paladin.Guid gameAfter).Value
 
         paladinAfterUse.CurrentMana |> should equal 0
@@ -68,7 +68,7 @@ type ``Using Hero Power`` () =
     [<Fact>]
     member x.``Warlock should draw card and' lose health`` () =
         let player, _, game = register2Class "Warlock" "Warlock"
-        let gameAfter = (Game.useHeroPower player None game).Value
+        let gameAfter = (Game.useHeroPower player.Guid None game).Value
         let playerAfterUse = (Game.getPlayer player.Guid gameAfter).Value
 
         playerAfterUse.CurrentMana |> should equal 0

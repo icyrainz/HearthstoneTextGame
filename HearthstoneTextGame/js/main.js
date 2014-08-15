@@ -61,14 +61,15 @@ var notifyImage = function (url) {
     });
 }
 
+
 var showModal = function (e) {
     $('#askModal').modal('show');
 };
 
 var hideModal = function (e) {
     $('#askModal').modal('hide');
-    $('body').removeClass('modal-open');
-    $('.modal-backdrop').remove();
+    //$('body').removeClass('modal-open');
+    //$('.modal-backdrop').remove();
 };
 
 var startTimerBar = function (e) {

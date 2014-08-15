@@ -198,12 +198,10 @@ module Remoting =
         respondAsync
             gameGuid
             (fun game ->
-                getPlayer playerGuid game
-                |> Option.bind(fun player ->
-                    let success, newGame = drawCard player game
-                    match success with
-                    | Some card-> Some (card, newGame)
-                    | None -> None)
+                let success, newGame = drawCard playerGuid game
+                match success with
+                | Some card-> Some (card, newGame)
+                | None -> None
             )
             (fun (newCard, newGame) ->
                 updateGame newGame
@@ -220,6 +218,16 @@ module Remoting =
         }
 
     [<Remote>]
+    let FindTargetForHeroPower (playerGuid : Guid) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                findTargetForHeroPower playerGuid game
+            )
+            (fun targetList -> Success(targetList))
+            (Error("Cannot find target"))
+
+    [<Remote>]
     let UseHeroPower (playerGuid : Guid) (targetGuid : Guid option) (gameGuid : Guid) =
         respondAsync
             gameGuid
@@ -227,29 +235,16 @@ module Remoting =
                 if targetGuid.IsSome then
                     findIChar targetGuid.Value game (fun _ -> ()) (fun _ -> ())
                     |> Option.bind(fun target ->
-                        getPlayer playerGuid game
-                        |> Option.bind(fun player -> useHeroPower player (Some target) game)
+                        useHeroPower playerGuid (Some target) game
                         )
                 else
-                    getPlayer playerGuid game
-                    |> Option.bind(fun player -> useHeroPower player None game)
+                    useHeroPower playerGuid None game
             )
             (fun newGame ->
                 updateGame newGame
                 Success("Successfully use hero power")
             )
             (Error("Cannot use hero power"))
-
-    [<Remote>]
-    let FindTargetForHeroPower (playerGuid : Guid) (gameGuid : Guid) =
-        respondAsync
-            gameGuid
-            (fun game ->
-                getPlayer playerGuid game
-                |> Option.bind(fun player -> findTargetForHeroPower player game)
-            )
-            (fun targetList -> Success(targetList))
-            (Error("Cannot find target"))
         
     [<Remote>]
     let StartGame (gameGuid : Guid) =
@@ -276,11 +271,11 @@ module Remoting =
             (Error ("Current player is not active or current phase is not Playing"))
 
     [<Remote>]
-    let DoesCardNeedTarget (cardName : string) =
+    let DoesCardNeedTarget (cardId : string) =
         async {
-            match getTargetForCard cardName with
-            | Some target -> return true
-            | None -> return false
+            match getTargetForCard cardId with
+            | Some target, _-> return true
+            | None, _ -> return false
         }
 
     [<Remote>]
@@ -288,8 +283,7 @@ module Remoting =
         respondAsync
             gameGuid
             (fun game ->
-                getPlayer playerGuid game
-                |> Option.bind(fun player -> findTargetForCard card player game)
+                findTargetForCard card playerGuid game
             )
             (fun targetList -> Success(targetList))
             (Error("Cannot find target"))
@@ -304,12 +298,10 @@ module Remoting =
                     if targetGuid.IsSome then
                         findIChar targetGuid.Value game (fun _ -> ()) (fun _ -> ())
                         |> Option.bind(fun target ->
-                            getPlayer playerGuid game
-                            |> Option.bind(fun player -> playCard card pos (Some target) player game)
+                            playCard card pos (Some target) playerGuid game
                             )
                     else
-                        getPlayer playerGuid game
-                            |> Option.bind(fun player -> playCard card pos None player game)
+                        playCard card pos None playerGuid game
                 )
             )
             (fun newGame -> 
@@ -323,8 +315,7 @@ module Remoting =
         respondAsync
             gameGuid
             (fun game ->
-                getPlayer playerGuid game
-                |> Option.bind(fun player -> findTargetToAttack player game)
+                findTargetToAttack playerGuid game
             )
             (fun targetList -> 
                 Success(targetList))

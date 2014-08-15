@@ -194,14 +194,11 @@ module Client =
             ]
         ]
 
-    let askItems = Div []
-    let askModalContentDiv =
-        Div [] -< [ UL [Attr.Class "list-group"] -- askItems ]
+    let askModalContentDiv = Div []
 
     let saveItemButton = 
         Button [Attr.Type "button"
                 Attr.Class "btn btn-primary"
-                Attr.NewAttr "data-dismiss" "modal"
                 Text "Save"]
 
     let modalDiv =
@@ -226,58 +223,80 @@ module Client =
                     Div [Attr.Class "modal-footer"] -< [
                         Button [Attr.Type "button"
                                 Attr.Class "btn btn-default"
-                                Attr.NewAttr "data-dismiss" "modal"
                                 Text "Close"] |>! OnClick (fun _ _ -> hideModal())
                         saveItemButton
                     ]
                 ]
             ]
         ]
+    let modalOpened = ref false;
+    let initElements () =
+        JQuery.Of(modalDiv.Dom).On("shown.bs.modal", (fun _ -> modalOpened := true; true))
+        JQuery.Of(modalDiv.Dom).On("hidden.bs.modal", (fun _ -> modalOpened := false; true))
+
+    let openModal () =
+        if (!modalOpened) then
+            JQuery.Of(modalDiv.Dom).Off("hidden.bs.modal")
+            JQuery.Of(modalDiv.Dom).On("hidden.bs.modal", (fun _ -> 
+                showModal()
+                JQuery.Of(modalDiv.Dom).Off("hidden.bs.modal")
+                JQuery.Of(modalDiv.Dom).On("hidden.bs.modal", (fun _ -> modalOpened := false; true))
+                true))
+        else
+            showModal()
 
     let addItemsToAsk (items : ('a * string) list) (callback : 'a -> unit) =
-        JQuery.Of(askItems.Dom).Empty().Ignore
+        let askItems = Div [Attr.Class "list-group"]
         items |> List.iter(fun (itemGuid, itemName) ->
-            let newItem = LI [Attr.Class "list-group-item"; Text itemName]
-            askItems.Append(newItem)
-            newItem |>! OnClick (fun evt m ->
-                JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore             
-                JQuery.Of(evt.Dom).AddClass("active").Ignore
+            let newItem = A [Attr.Class "list-group-item"; Text itemName; HRef "#"]          
+            JQuery.Of(newItem.Dom).Click(fun elem evt ->
+                evt.PreventDefault()
+                JQuery.Of(askItems.Dom).Children("a").RemoveClass("active").Ignore             
+                JQuery.Of(elem).AddClass("active").Ignore
                 JQuery.Of(saveItemButton.Dom)
                     .Unbind("click")
                     .Click(fun _ _ -> hideModal(); callback itemGuid).Ignore
-            ) |> ignore)
+                ).Ignore
+            askItems.Append(newItem)
+            )
+        JQuery.Of(askModalContentDiv.Dom).Empty().Ignore
+        JQuery.Of(askModalContentDiv.Dom).Append(JQuery.Of(askItems.Dom)).Ignore
         JQuery.Of(saveItemButton.Dom).Unbind("click").Click(fun _ _ -> hideModal()).Ignore
-        showModal()
+        openModal()
 
     let addItemsToAskForPosition (items : string list) (callback : int -> unit) =
-        JQuery.Of(askItems.Dom).Empty().Ignore
+        let askItems = Div [Attr.Class "list-group"]
         for (idx, item) in items |> List.mapi(fun i it -> i, it) do
-            let pos = LI [Attr.Class "list-group-item"; Text "->"]
-            pos |>! OnClick (fun evt m ->
-                JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore
-                JQuery.Of(evt.Dom).AddClass("active").Ignore
+            let pos = A [Attr.Class "list-group-item"; Text "->"; HRef "#"]
+            JQuery.Of(pos.Dom).Click(fun elem evt ->
+                evt.PreventDefault()
+                JQuery.Of(askItems.Dom).Children("a").RemoveClass("active").Ignore
+                JQuery.Of(elem).AddClass("active").Ignore
                 JQuery.Of(saveItemButton.Dom)
                     .Unbind("click")
                     .Click(fun _ _ -> hideModal(); callback idx)
                     .Ignore
-            ) |> ignore
+            ).Ignore
             askItems.Append(pos)
-            let newItem = LI [Attr.Class "list-group-item"; Text item]
+            let newItem = A [Attr.Class "list-group-item"; Text item]
             askItems.Append(newItem)
 
         // Add item for last position
-        let pos = LI [Attr.Class "list-group-item"; Text "->"]
-        pos |>! OnClick (fun evt m ->
-            JQuery.Of(askItems.Dom).Children("li").RemoveClass("active").Ignore
-            JQuery.Of(evt.Dom).AddClass("active").Ignore
+        let pos = A [Attr.Class "list-group-item"; Text "->"; HRef "#"]
+        JQuery.Of(pos.Dom).Click(fun elem evt ->
+            evt.PreventDefault()
+            JQuery.Of(askItems.Dom).Children("a").RemoveClass("active").Ignore
+            JQuery.Of(elem).AddClass("active").Ignore
             JQuery.Of(saveItemButton.Dom)
                 .Unbind("click")
                 .Click(fun _ _ -> hideModal(); callback items.Length)
                 .Ignore
-        ) |> ignore
+        ).Ignore
         askItems.Append(pos)
+        JQuery.Of(askModalContentDiv.Dom).Empty().Ignore
+        JQuery.Of(askModalContentDiv.Dom).Append(JQuery.Of(askItems.Dom)).Ignore
         JQuery.Of(saveItemButton.Dom).Unbind("click").Click(fun _ _ -> hideModal()).Ignore
-        showModal()
+        openModal()
 
     let cardTemplateDiv (playable : bool) (card : CardOnHand) (owner : Player) =
 
@@ -298,7 +317,7 @@ module Client =
                     .Click(fun _ _ ->
                         if not playable then notifyError("Cannot play card")
                         else
-                            doAsync (Remoting.DoesCardNeedTarget card.Card.Name)
+                            doAsync (Remoting.DoesCardNeedTarget card.Card.Id)
                                 (fun needTarget ->
                                     match needTarget with
                                     | false ->
@@ -617,6 +636,7 @@ module Client =
             updatePlayers()
 
     let newGame () =
+        initElements()
         if currentGame.Exist() then notify("Refresh page to start new game !")
         else
             doAsync (Remoting.NewGame())
