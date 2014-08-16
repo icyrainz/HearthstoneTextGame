@@ -318,7 +318,8 @@ module Game =
                 let newPlayer = { player with CurrentMana = player.CurrentMana - card.Cost
                                               Hand = player.Hand |> List.filter(fun c -> c <> card)
                                 }
-                let newGame = snd (getTargetForCard card.Card.Id) ((target, playerGuid), game)
+                let mutable newGame = updatePlayerToGame newPlayer game
+                newGame <- snd (getTargetForCard card.Card.Id) ((target, playerGuid), newGame)
 
                 match card.Card.Type with
                 | "Spell" -> None

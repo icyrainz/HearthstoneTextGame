@@ -304,6 +304,7 @@ module Client =
         let previewButton =
             JQuery.Of("<button />")
                 .AddClass("btn btn-default")
+                .Attr("type", "button")
                 .Text("Image")
                 .Click(fun _ _ ->
                     notifyImage(cardImgUrl)
@@ -382,47 +383,59 @@ module Client =
                     )
             if playable then item.AddClass("btn btn-success")
             else item.AddClass("btn btn-default").Attr("disabled", "true")
+        
+        let cost = 
+            let costLabel = 
+                JQuery.Of("<button />")
+                    .Attr("role", "button")
+                    .Text(card.Cost.ToString())
+            if card.Cost > card.Card.Cost.Value then
+                costLabel.AddClass("btn btn-danger")
+            else if card.Cost < card.Card.Cost.Value then
+                costLabel.AddClass("btn btn-success")
+            else
+                costLabel.AddClass("btn btn-primary")
+
+        let buttonGroup = 
+            let div = Div [Attr.Class "btn-group"]
+            JQuery.Of(div.Dom).Append(previewButton).Append(playCardButton)
 
         let cardInfo =
-            // TODO: change label color when real cost <> card cost
-            let cost = 
-                let costLabel = JQuery.Of("<div />").AddClass("col-xs-1").Text(card.Cost.ToString())
-                if card.Cost > card.Card.Cost.Value then
-                    costLabel.AddClass("label label-danger")
-                else if card.Cost < card.Card.Cost.Value then
-                    costLabel.AddClass("label label-success")
-                else
-                    costLabel.AddClass("label label-primary")
-            let name = 
-                let nameLabel = JQuery.Of("<div />").AddClass("col-xs-8").Text(card.Card.Name)
-                match card.Card.Rarity with
-                | Some "Legendary" -> nameLabel.Css("color", "orange")
-                | Some "Epic" -> nameLabel.Css("color", "violet")
-                | Some "Rare" -> nameLabel.Css("color", "blue")
-                | Some "Common" -> nameLabel.Css("color", "black")
-                | _ -> nameLabel.Css("color", "gray")
-
+            let div = Div [Attr.Class "btn-group"]
             
+
             let atk =
                 if card.Card.Type = "Minion" || card.Card.Type = "Weapon" then
-                    JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Attack.IsSome then card.Card.Attack.Value.ToString() else "")
+                    JQuery.Of("<button />").Attr("role", "button").AddClass("btn btn-default").Text(if card.Card.Attack.IsSome then card.Card.Attack.Value.ToString() else "")
                 else
-                    JQuery.Of("<div />")
+                    JQuery.Of("")
             let hpOrDu =
                 if card.Card.Type = "Minion" then
-                    JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Health.IsSome then card.Card.Health.Value.ToString() else "")
+                    JQuery.Of("<button />").Attr("role", "button").AddClass("btn btn-default").Text(if card.Card.Health.IsSome then card.Card.Health.Value.ToString() else "")
                 else if card.Card.Type = "Weapon" then
-                    JQuery.Of("<div />").AddClass("col-xs-1").AddClass("label label-default").Text(if card.Card.Durability.IsSome then card.Card.Durability.Value.ToString() else "")
+                    JQuery.Of("<button />").Attr("role", "button").AddClass("btn btn-default").Text(if card.Card.Durability.IsSome then card.Card.Durability.Value.ToString() else "")
                 else
-                    JQuery.Of("<div />")
-            JQuery.Of("<h5/>").AddClass("row").Append(cost).Append(name).Append(atk).Append(hpOrDu)
+                    JQuery.Of("")
+
+            JQuery.Of(div.Dom).Append(atk).Append(hpOrDu)
+
+        let name = 
+            let nameLabel = JQuery.Of("<h5 />").Text(card.Card.Name).AddClass("pull-right")
+            match card.Card.Rarity with
+            | Some "Legendary" -> nameLabel.Css("color", "orange")
+            | Some "Epic" -> nameLabel.Css("color", "violet")
+            | Some "Rare" -> nameLabel.Css("color", "blue")
+            | Some "Common" -> nameLabel.Css("color", "black")
+            | _ -> nameLabel.Css("color", "gray")
 
         let newItem = LI []
         JQuery.Of(newItem.Dom)
             .AddClass("list-group-item")
             .Append(JQuery.Of("<div />").AddClass("row").AddClass("clearfix")
-                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(previewButton).Append(playCardButton))
-                .Append(JQuery.Of("<div />").AddClass("col-xs-8").Append(cardInfo))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(buttonGroup))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-1").Append(cost))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-3").Append(cardInfo))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(name))
             ).Ignore
         newItem
 
@@ -451,9 +464,11 @@ module Client =
 
     let minionTemplateDiv (attackable : bool) (minion : Minion) (owner : Player) =
         let cardImgUrl = "http://wow.zamimg.com/images/hearthstone/cards/enus/medium/" + minion.Card.Id + ".png"
+        
         let previewButton =
             JQuery.Of("<button />")
                 .AddClass("btn btn-default")
+                .Attr("type", "button")
                 .Text("Image")
                 .Click(fun _ _ ->
                     notifyImage(cardImgUrl)
@@ -469,39 +484,67 @@ module Client =
             match attackable with
             | true -> item.AddClass("btn btn-success")
             | false -> item.AddClass("btn btn-default").Attr("disabled", "true")
+        let buttonGroup = 
+            let div = Div [Attr.Class "btn-group"]
+            JQuery.Of(div.Dom).Append(previewButton).Append(attackButton)
 
-        let minionInfo =
-            let name = 
-                let nameLabel = JQuery.Of("<div />").AddClass("col-xs-8").Text(minion.Card.Name)
-                match minion.Card.Rarity with
-                | Some "Legendary" -> nameLabel.Css("color", "orange")
-                | Some "Epic" -> nameLabel.Css("color", "violet")
-                | Some "Rare" -> nameLabel.Css("color", "blue")
-                | Some "Common" -> nameLabel.Css("color", "black")
-                | _ -> nameLabel.Css("color", "gray")
+        let atk = 
+            let elem = 
+                JQuery.Of("<button />")
+                    .Text(minion.AttackValue.ToString())
+                    .Attr("role", "button")
+            if minion.AttackValue > minion.Card.Attack.Value then
+                elem.AddClass("btn btn-success")
+            else
+                elem.AddClass("btn btn-default")
+        
+        let hp =
+            let elem = 
+                JQuery.Of("<button />")
+                    .Text(minion.CurrentHealth.ToString())
+            if minion.CurrentHealth > minion.Card.Health.Value then
+                elem.AddClass("btn btn-success")
+            else if minion.CurrentHealth < minion.MaxHealth then
+                elem.AddClass("btn btn-danger")
+            else
+                elem.AddClass("btn btn-default")
 
-            let atk = 
-                let elem = JQuery.Of("<div />").AddClass("col-xs-1").Text(minion.AttackValue.ToString())
-                if minion.AttackValue > minion.Card.Attack.Value then
-                    elem.AddClass("label label-success")
-                else
-                    elem.AddClass("label label-default")
-            let hp =
-                let elem = JQuery.Of("<div />").AddClass("col-xs-1").Text(minion.CurrentHealth.ToString())
-                if minion.CurrentHealth > minion.Card.Health.Value then
-                    elem.AddClass("label label-success")
-                else if minion.CurrentHealth < minion.MaxHealth then
-                    elem.AddClass("label label-danger")
-                else
-                    elem.AddClass("label label-default")
-            JQuery.Of("<h5/>").AddClass("row").Append(name).Append(atk).Append(hp)
+        let props =
+            let mutable prop = []
+            let label (text) =
+                JQuery.Of("<li />").Append(JQuery.Of("<a />").Text(text))
+            if minion.HasDivineShield then prop <- label ("DvnShld") :: prop
+            if minion.HasTaunt then prop <- label ("Tnt") :: prop
+
+            let div = JQuery.Of("<div />").AddClass("btn-group")
+            let div2 = JQuery.Of("<button />").AddClass("btn btn-default dropdown-toggle").Attr("data-toggle", "dropdown").Text("Status").Append(JQuery.Of("<span class='caret'></span>"))
+            let div3 = JQuery.Of("<ul />").AddClass("dropdown-menu").Attr("role", "menu")
+            if prop.Length <> 0 then
+                prop |> List.iter(fun e -> div3.Append(e).Ignore)
+            else
+                div2.Attr("disabled", "disabled").Ignore
+            div.Append(div2).Append(div3)
+
+        let buttonGroup2 = 
+            let div = Div [Attr.Class "btn-group"]
+            JQuery.Of(div.Dom).Append(atk).Append(hp).Append(props)
+
+        let nameLabel = JQuery.Of("<h5 />").Text(minion.Card.Name).AddClass("pull-right")
+        match minion.Card.Rarity with
+        | Some "Legendary" -> nameLabel.Css("color", "orange").Ignore
+        | Some "Epic" -> nameLabel.Css("color", "violet").Ignore
+        | Some "Rare" -> nameLabel.Css("color", "blue").Ignore
+        | Some "Common" -> nameLabel.Css("color", "black").Ignore
+        | _ -> nameLabel.Css("color", "gray").Ignore
+
 
         let newItem = LI []
         JQuery.Of(newItem.Dom)
             .AddClass("list-group-item")
             .Append(JQuery.Of("<div />").AddClass("row").AddClass("clearfix")
-                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(previewButton).Append(attackButton))
-                .Append(JQuery.Of("<div />").AddClass("col-xs-8").Append(minionInfo))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(buttonGroup))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(buttonGroup2))
+                .Append(JQuery.Of("<div />").AddClass("col-xs-4").Append(nameLabel))
             ).Ignore
         newItem
 
