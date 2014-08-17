@@ -353,7 +353,9 @@ module Entity =
     type GameSession =
         { Guid : Guid
           Players : Player list
+          StartPlayerGuid : Guid
           ActivePlayerGuid : Guid
+          HasMulliganed : Guid list
           CurrentPhase : GamePhase
         }
 
@@ -364,6 +366,8 @@ module Entity =
         static member Init () =
             { Guid = Guid.New()
               Players = []
+              StartPlayerGuid = { value = "" }
               ActivePlayerGuid = { value = "" }
+              HasMulliganed = []
               CurrentPhase = GamePhase.NotStarted
             }

@@ -69,6 +69,8 @@ module Client =
     let newGameButton = btn "NewGame" "newGameBtn" Green
     let registerPlayerButton = btn "Register" "registerPlayerBtn" Default
     let startGameButton = btn "Start Game" "startGameBtn" Default
+    let leftMulliganButton = btn "LeftMulligan" "mulliganBtn" Default
+    let rightMulliganButton = btn "RightMulligan" "mulliganBtn" Default
 
     let leftPlayerEndTurnButton = btn "End Turn" "leftEndTurnBtn" Default
     let leftPlayerUseHeroPowerButton = btn "Use" "leftUseHeroPowerBtn" Default
@@ -262,6 +264,27 @@ module Client =
         JQuery.Of(askModalContentDiv.Dom).Empty().Ignore
         JQuery.Of(askModalContentDiv.Dom).Append(JQuery.Of(askItems.Dom)).Ignore
         JQuery.Of(saveItemButton.Dom).Unbind("click").Click(fun _ _ -> hideModal()).Ignore
+        openModal()
+
+    let addItemsToAskMultiple (items : ('a * string) list) (callback : 'a list -> unit) =
+        let (sels : 'a list ref) = ref []
+        let askItems = Div [Attr.Class "list-group"]
+        items |> List.iter(fun (itemGuid, itemName) ->
+            let newItem = A [Attr.Class "list-group-item"; Text itemName; HRef "#"]          
+            JQuery.Of(newItem.Dom).Click(fun elem evt ->
+                evt.PreventDefault()
+                if JQuery.Of(elem).HasClass("active") then
+                    sels := (!sels) |> List.filter(fun e -> e <> itemGuid)
+                    JQuery.Of(elem).RemoveClass("active").Ignore
+                else           
+                    sels := itemGuid :: !sels
+                    JQuery.Of(elem).AddClass("active").Ignore
+                ).Ignore
+            askItems.Append(newItem)
+            )
+        JQuery.Of(askModalContentDiv.Dom).Empty().Ignore
+        JQuery.Of(askModalContentDiv.Dom).Append(JQuery.Of(askItems.Dom)).Ignore
+        JQuery.Of(saveItemButton.Dom).Unbind("click").Click(fun _ _ -> hideModal(); callback (!sels)).Ignore
         openModal()
 
     let addItemsToAskForPosition (items : string list) (callback : int -> unit) =
@@ -773,7 +796,47 @@ module Client =
                         )
                 | Error msg -> notifyError(msg))
 
+    let doMulligan (player : Player) =
+        if currentGame.Exist() then
+            doAsync (Remoting.GetMulligan player.Guid currentGame.Guid)
+                (fun ret ->
+                    match ret with
+                    | Success stringIdList ->
+                        let itemNames =
+                            stringIdList |> List.map(fun e -> 
+                                match Remoting.GetCard e with
+                                | Success card -> card.Name
+                                | Error msg -> "Cannot load name !"
+                                )
+                        let itemNamesWithGuid = List.zip stringIdList itemNames
+                        addItemsToAskMultiple itemNamesWithGuid (fun choiceList ->
+                            doAsync (Remoting.ReturnMulligan choiceList player.Guid currentGame.Guid)
+                                (fun res ->
+                                    match res with
+                                    | Success finished ->
+                                        if finished then
+                                            notifySuccess("Mulligan ended. Game starting ..")
+                                        else
+                                            notify("Wait for other players to mulligan")
+                                    | Error msg -> notifyError(msg)
+                                )
+                        )
+                    | Error msg -> notifyError(msg)
+                )
+        else
+            notify("Start game first")
+
     let setupButton =
+
+        JQuery.Of(leftMulliganButton.Dom)
+            .Click(fun _ _ ->
+                doMulligan(currentGame.LeftPlayer)
+            ).Ignore
+
+        JQuery.Of(rightMulliganButton.Dom)
+            .Click(fun _ _ ->
+                doMulligan(currentGame.RightPlayer)
+            ).Ignore
 
         JQuery.Of(startGameButton.Dom)
             .Click(fun _ _ ->
@@ -781,7 +844,7 @@ module Client =
                     doAsync (Remoting.StartGame currentGame.Guid)
                         (fun ret ->
                             match ret with
-                            | Success msg -> notifySuccess(msg)
+                            | Success msg -> notify("Mulligan started")
                             | Error msg -> notifyError(msg)
                         )
             ).Ignore
@@ -846,11 +909,16 @@ module Client =
                         Div [Attr.Class "col-sm-4"] -- registerPlayerButton
                         Div [Attr.Class "col-sm-4"] -- startGameButton
                     ]
+                    Div [Attr.Class "row clearfix"] -< [
+                        Div [Attr.Class "col-sm-6"] -- leftMulliganButton
+                        Div [Attr.Class "col-sm-6"] -- rightMulliganButton
+                    ]
                 ]
                 Div [Attr.Class "panel-footer"] -< [
                     Div [Attr.Class "row clearfix"] -< [
                         H4 [Attr.Class "col-sm-2"] -< [
                             Span [Attr.Class "label label-info center-block"; Text "Game Guid"]
+                            |>! OnClick(fun _ _ -> updatePlayers())
                         ]
                         H4 [Attr.Class "col-sm-10 text-center"] -- gameGuidLabel
                     ]

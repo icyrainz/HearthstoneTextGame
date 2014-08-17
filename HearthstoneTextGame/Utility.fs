@@ -24,6 +24,14 @@ module Utility =
         let newLst = remove rng lst
         item, newLst
 
+    let getRandomElem (num : int) (lst : 'a list) =
+        let tempList = ref lst
+        [ for i = 1 to num do
+            let elem, aList = removeRandomElem !tempList
+            tempList := aList
+            yield elem
+        ]
+
     let getContentPath path = 
         match System.Web.Hosting.HostingEnvironment.MapPath("~/Content/" + path) with
         | null -> Path.Combine("Content", path)

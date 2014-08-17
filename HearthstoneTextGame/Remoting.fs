@@ -118,10 +118,13 @@ module Remoting =
     [<Remote>]
     let AskForUpdate (gameGuid : Guid) =
         async {
-            let event = (getEvent (gameGuid)).Value.GameChanged
-            let waitTask = Async.RunSynchronously (Async.AwaitEvent event, 30 * 60 * 1000) |> ignore
-            // TODO: check if game ended -> no more update
-            return gameGuid, true
+            try
+                let event = (getEvent (gameGuid)).Value.GameChanged
+                let waitTask = Async.RunSynchronously (Async.AwaitEvent event, 30 * 60 * 1000) |> ignore
+                // TODO: check if game ended -> no more update
+                return gameGuid, true
+            with
+            | e -> return gameGuid, false
         }
        
     [<Remote>]
@@ -190,6 +193,35 @@ module Remoting =
             )
             (fun guid -> Success(guid))
             (Error("Cannot get active player"))
+
+    [<Remote>]
+    let GetMulligan (playerGuid : Guid) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                getMulligan playerGuid game
+            )
+            (fun cardIdList -> Success(cardIdList))
+            (Error("Cannot mulligan"))
+
+    [<Remote>]
+    let ReturnMulligan (cardIdList : string list) (playerGuid : Guid) (gameGuid : Guid) =
+        respondAsync
+            gameGuid
+            (fun game ->
+                match endMulligan cardIdList playerGuid game with
+                | Some newGame -> 
+                    updateGame newGame
+                    match afterMulligan newGame with
+                    | Some newGame2 ->
+                        updateGame newGame2
+                        Some newGame2
+                    | None ->
+                        Some newGame
+                | None -> None
+            )
+            (fun newGame -> Success(newGame.CurrentPhase = Playing))
+            (Error ("Cannot end mulligan"))
     // #endregion
 
     // #region Gameplay functions

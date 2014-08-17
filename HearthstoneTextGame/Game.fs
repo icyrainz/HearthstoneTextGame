@@ -343,19 +343,59 @@ module Game =
         if game.PlayerCount <> Config.maxNumberOfPlayers || game.CurrentPhase <> NotStarted then None
         else
             let startPlayer = Utility.rngNext(Config.maxNumberOfPlayers) |> List.nth game.Players
-            let secondPlayer = (getOpponent startPlayer.Guid game).Value
-            let newSecondPlayer = { secondPlayer with Hand = CardOnHand.Parse(Card.TheCoin) :: secondPlayer.Hand}
-            let newStartPlayer = { startPlayer with CurrentMana = 1; MaxMana = 1 }
-            let mutable newGame = updatePlayerToGame newStartPlayer game
-            newGame <- updatePlayerToGame newSecondPlayer newGame
-            let _, newGameWithDrawCard = drawCard newStartPlayer.Guid newGame
-            Some { newGameWithDrawCard with ActivePlayerGuid = newStartPlayer.Guid; CurrentPhase = Playing }
+            Some { game with StartPlayerGuid = startPlayer.Guid; CurrentPhase = Mulligan }
 
-//    let mulligan (player : Player) (game : GameSession) =
-//        if game.CurrentPhase <> Mulligan then None
-//        else
-//            let activePlayer = (getPlayer game.ActivePlayerGuid game).Value
-//            let randomCards = 
+    let getMulligan (playerGuid : Guid) (game : GameSession) =
+        if game.CurrentPhase <> Mulligan ||
+            game.HasMulliganed |> List.exists(fun e -> e = playerGuid)
+        then None
+        else
+            let numCards = if playerGuid = game.StartPlayerGuid then 3 else 4
+            match getPlayer playerGuid game with
+            | None -> None
+            | Some player -> Some <| Utility.getRandomElem numCards player.Deck.CardIdList
+
+    let endMulligan (chosenCards : string list) (playerGuid : Guid) (game : GameSession) =
+        if game.CurrentPhase <> Mulligan then None
+        else
+            match getPlayer playerGuid game with
+            | None -> None
+            | Some player ->
+                let numCards = if playerGuid = game.StartPlayerGuid then 3 else 4
+                let tempList = player.Deck.CardIdList |> List.toArray
+                let tempList2 = chosenCards |> List.toArray
+                for idx = 0 to tempList.Length - 1 do
+                    for jdx = 0 to tempList2.Length - 1 do
+                        if tempList2.[jdx] <> "" && tempList.[idx] = tempList2.[jdx] then
+                            tempList.[idx] <- ""
+                            tempList2.[jdx] <- ""
+                let deck = 
+                    { player.Deck with 
+                        CardIdList = tempList |> Array.filter(fun e -> e <> "") |> Array.toList }
+                let hand = chosenCards |> List.map(fun e -> CardOnHand.Parse(Card.getCardById(e)))               
+                let newPlayer = { player with Hand = hand; Deck = deck }
+                let mutable newGame = updatePlayerToGame newPlayer game
+                for i = chosenCards.Length + 1 to numCards do                  
+                    let _, newGameWithDrawCard = drawCard player.Guid newGame
+                    newGame <- newGameWithDrawCard
+                newGame <- { newGame with HasMulliganed = playerGuid :: newGame.HasMulliganed }
+                Some newGame
+
+    let afterMulligan (game : GameSession) =
+        if game.CurrentPhase <> Mulligan then None
+        else
+            if game.HasMulliganed.Length = Config.maxNumberOfPlayers then
+                let startPlayer = (getPlayer game.StartPlayerGuid game).Value
+                let secondPlayer = (getOpponent startPlayer.Guid game).Value
+                let newSecondPlayer = { secondPlayer with Hand = CardOnHand.Parse(Card.TheCoin) :: secondPlayer.Hand}
+                let newStartPlayer = { startPlayer with CurrentMana = 1; MaxMana = 1 }
+
+                let mutable newGame = updatePlayerToGame newStartPlayer game
+                newGame <- updatePlayerToGame newSecondPlayer newGame
+                let _, newGameWithDrawCard = drawCard newStartPlayer.Guid newGame
+                Some { newGameWithDrawCard with ActivePlayerGuid = newStartPlayer.Guid; CurrentPhase = Playing }
+            else
+                Some game
 
     let endTurn (game : GameSession) =
         if game.CurrentPhase <> Playing then None
