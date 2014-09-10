@@ -15,6 +15,8 @@ It's like a strip-down version with no visual effects and eye candy but still ca
 ## Planned Features  ##
  - Custom game format
  - Custom class / custom cards
+ - Match-matching with other players
+ - Machine Learning for AI
 
 ## Status ##
  - The app is currently at a very early stage.
